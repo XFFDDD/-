@@ -1,4 +1,17 @@
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/main%20(1).lua"))()
+local WindUI = nil
+local loadSuccess, errMsg = pcall(function()
+    WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/main%20(1).lua"))()
+end)
+
+if not loadSuccess or not WindUI then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "WindUI 加载失败",
+        Text = "请检查网络或更换执行器",
+        Duration = 5
+    })
+    error("WindUI 未加载，脚本终止。错误信息：" .. tostring(errMsg))
+    return
+end
 
 WindUI:Notify({
     Title = "在森林中的99夜",
@@ -9,7 +22,7 @@ WindUI:Notify({
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character
-local hum = Character.HumanoidRootPart
+local hum = Character and Character:FindFirstChild("HumanoidRootPart")
 local PlayerGui = LocalPlayer.PlayerGui
 
 local Window = WindUI:CreateWindow({
@@ -36,7 +49,7 @@ local mainFrame = Window.UIElements.Main
 
 if mainFrame then
     for _, label in ipairs(mainFrame:GetDescendants()) do
-        if label:IsA("TextLabel") and label.Text == "北极星脚本--森林中的99夜" then
+        if label:IsA("TextLabel") and label.Text == "星脚本--森林中的99夜" then
             local gradient = Instance.new("UIGradient")
             gradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
@@ -2949,6 +2962,9 @@ Main:Button({
 })
 
 Main = MainSection:Tab({ Title = "其余", Icon = "Sword" })
+
+local sudu = nil
+local Speed = 1
 
 Main:Toggle({
     Title = "速度 (开/关)",
