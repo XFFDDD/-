@@ -1776,6 +1776,45 @@ Window:Tag({
     Border = true
 })
 
+local function setupRainbowText()
+    wait(0.5)
+    if Window and Window.UIElements then
+        local mainFrame = Window.UIElements.Main
+        if mainFrame then
+            for _, label in ipairs(mainFrame:GetDescendants()) do
+                if label:IsA("TextLabel") and label.Text and string.find(label.Text, "皮门天下") then
+                    local oldGradient = label:FindFirstChild("RainbowTextGradient")
+                    if oldGradient then oldGradient:Destroy() end
+                    local rainbowGradient = Instance.new("UIGradient")
+                    rainbowGradient.Name = "RainbowTextGradient"
+                    rainbowGradient.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
+                        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+                        ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),
+                        ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+                        ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+                        ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))
+                    })
+                    rainbowGradient.Rotation = 0
+                    rainbowGradient.Parent = label
+                    label.TextColor3 = Color3.fromHex("#FFFFFF")
+                    game:GetService("RunService").Heartbeat:Connect(function()
+                        if rainbowGradient and rainbowGradient.Parent then
+                            rainbowGradient.Rotation = (rainbowGradient.Rotation + 1.5) % 360
+                        end
+                    end)
+                    return
+                end
+            end
+        end
+    end
+    wait(1)
+    setupRainbowText()
+end
+
+spawn(setupRainbowText)
+
 local RunService = game:GetService("RunService")
 RunService.Heartbeat:Connect(function()
     TimeTag:SetTitle("当前时间: " .. os.date("%H:%M:%S"))
