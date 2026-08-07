@@ -1685,15 +1685,83 @@ local Window = WindUI:CreateWindow({
     Title = "小星--伐木大亨2",
     Icon = "rbxassetid://18941716391",
     IconThemed = true,
-    Author = "<font color='#FFFFFF'>作者: 小星</font>",
+    Author = "<font color='#FFFFFF'>作者：小星</font>",
     Folder = "星脚本",
     Size = UDim2.fromOffset(500, 400),
     Transparent = true,
     Theme = "Dark",
-    BackgroundImageTransparency = 0.4,
     SideBarWidth = 200,
     HideSearchBar = false,
-    ScrollBarEnabled = true,
+})
+
+task.wait(0.5)
+local mainFrame = Window.UIElements.Main
+if mainFrame then
+    for _, label in ipairs(mainFrame:GetDescendants()) do
+        if label:IsA("TextLabel") and label.Text == "小星--伐木大亨2" then
+            local gradient = Instance.new("UIGradient")
+            gradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
+                ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+                ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+                ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),
+                ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+                ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+                ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))
+            })
+            gradient.Rotation = 0
+            gradient.Parent = label
+            label.TextColor3 = Color3.fromHex("#FFFFFF")
+            game:GetService("RunService").Heartbeat:Connect(function()
+                if gradient and gradient.Parent then
+                    gradient.Rotation = (gradient.Rotation + 1.5) % 360
+                end
+            end)
+            break
+        end
+    end
+end
+
+if mainFrame then
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.new(1, 1, 1)
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.LineJoinMode = Enum.LineJoinMode.Round
+    stroke.Parent = mainFrame
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
+        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+        ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),
+        ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+        ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))
+    })
+    gradient.Rotation = 0
+    gradient.Parent = stroke
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if gradient and gradient.Parent then
+            gradient.Rotation = (gradient.Rotation + 1.5) % 360
+        end
+    end)
+end
+
+Window:EditOpenButton({
+    Title = "<font color='#0000FF'>星</font>-<font color='#00FF00'>脚本</font> ",
+    Icon = "rbxassetid://18941716391",
+    CornerRadius = UDim.new(1, 14),
+    StrokeThickness = 2,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
+        ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+        ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+        ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),
+        ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+        ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+        ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))
+    })
 })
 
 -- ========== 标签页 ==========
