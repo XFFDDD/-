@@ -1678,8 +1678,8 @@ shuaxinlb(true)
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/main%20(1).lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "小星--伐木大亨2",
-    Icon = "rbxassetid://136169594232359",
+    Title = "星脚本--伐木大亨2",
+    Icon = "rbxassetid://18941716391",
     IconThemed = true,
     Author = "<font color='#FFFFFF'>作者：小星</font>",
     Folder = "星脚本",
@@ -1691,10 +1691,12 @@ local Window = WindUI:CreateWindow({
 })
 
 task.wait(0.5)
+
 local mainFrame = Window.UIElements.Main
+
 if mainFrame then
     for _, label in ipairs(mainFrame:GetDescendants()) do
-        if label:IsA("TextLabel") and label.Text == "小星--伐木大亨2" then
+        if label:IsA("TextLabel") and label.Text == "星脚本--伐木大亨2" then
             local gradient = Instance.new("UIGradient")
             gradient.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
@@ -1746,7 +1748,7 @@ end
 
 Window:EditOpenButton({
     Title = "<font color='#0000FF'>星脚本</font>-<font color='#00FF00'>伐木2</font> ",
-    Icon = "rbxassetid://136169594232359",
+    Icon = "rbxassetid://18941716391",
     CornerRadius = UDim.new(1, 14),
     StrokeThickness = 2,
     Color = ColorSequence.new({
@@ -1760,6 +1762,24 @@ Window:EditOpenButton({
     })
 })
 
+local TimeTag = Window:Tag({
+    Title = "当前时间: " .. os.date("%H:%M:%S"),
+    Icon = "clock",
+    Color = Color3.fromHex("#FFFFFF"),
+    Border = true
+})
+
+Window:Tag({
+    Title = "皮门天下",
+    Icon = "",
+    Color = Color3.fromHex("#FFFFFF"),
+    Border = true
+})
+
+local RunService = game:GetService("RunService")
+RunService.Heartbeat:Connect(function()
+    TimeTag:SetTitle("当前时间: " .. os.date("%H:%M:%S"))
+end)
 
 local Tab1 = Window:Section({ Title = "玩家功能", Opened = true })
 local Tab = Window:Section({ Title = "主要功能", Opened = true })
