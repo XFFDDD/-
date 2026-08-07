@@ -13,10 +13,10 @@ end
 setThemeColors()
 
 local Window = WindUI:CreateWindow({
-    Title = "北极星脚本·森林99夜",
+    Title = "星脚本·森林99夜",
     Icon = "rbxassetid://129260712070622",
     IconThemed = true,
-    Author = "<font color='#FFFFFF'>欢迎付费版本用户</font>",
+    Author = "<font color='#FFFFFF'>欢迎星脚本用户</font>",
     Folder = "CloudHub",
     Size = UDim2.fromOffset(300, 270),
     Transparent = true,
@@ -35,7 +35,7 @@ task.wait(0.5)
 local mainFrame = Window.UIElements.Main
 if mainFrame then
     for _, label in ipairs(mainFrame:GetDescendants()) do
-        if label:IsA("TextLabel") and label.Text == "北极星脚本·森林99夜" then
+        if label:IsA("TextLabel") and label.Text == "星脚本·森林99夜" then
             local gradient = Instance.new("UIGradient")
             gradient.Name = "TitleRainbow"
             gradient.Color = ColorSequence.new({
@@ -143,7 +143,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 Window:EditOpenButton({
-    Title = "<font color='#0000FF'>打开</font><font color='#00FF00'>脚本</font>",
+    Title = "<font color='#0000FF'>打开</font><font color='#00FF00'>星脚本</font>",
     Icon = "star",
     CornerRadius = UDim.new(1, 14),
     StrokeThickness = 2,
