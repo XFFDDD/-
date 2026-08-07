@@ -17936,22 +17936,22 @@ XPHUBNotification:Notification({
     Icon = "rbxassetid://136169594232359",
     Duration = 3
 })
-
+--以下是优化区
 local function createPerfPatch()
     local CoreGui = game:GetService("CoreGui")
-    local RunService = game:GetService("RunService")
     
     local function isOriginalScriptLoaded()
         return _G.ESPConfig ~= nil and _G.MotionBlurConfig ~= nil and _G.GraphicsState ~= nil
     end
     
     if not isOriginalScriptLoaded() then
-        warn("原脚本未完全加载，性能补丁可能无法生效，建议在脚本完全加载后运行")
+        warn("原脚本未完全加载，性能补丁可能无法生效")
         return
     end
     
     local perfEnabled = false
     local originalValues = {}
+    local savedLoopHandles = {}
     
     local function applyOptimizations()
         originalValues = {
@@ -17984,15 +17984,24 @@ local function createPerfPatch()
             _G.AimBotState.aimNPC = false
         end
         
-        local autoVars = {
-            "autoAttackEnabled", "autoHealEnabled", "autoSuppressEnabled", 
-            "autoWhizzEnabled", "autoKillEnabled", "autoFling"
+        local loopNames = {
+            "autoKillLoop", "autoHealLoop", "autoAttackLoop", 
+            "autoSuppressLoop", "autoWhizzLoop"
         }
-        for _, var in ipairs(autoVars) do
-            if getgenv()[var] ~= nil then
-                originalValues[var] = getgenv()[var]
-                getgenv()[var] = false
+        savedLoopHandles = {}
+        if _G.ACSConfig then
+            for _, name in ipairs(loopNames) do
+                if _G.ACSConfig[name] then
+                    savedLoopHandles[name] = _G.ACSConfig[name]
+                    task.cancel(_G.ACSConfig[name])
+                    _G.ACSConfig[name] = nil
+                end
             end
+        end
+        
+        if getgenv().autofling ~= nil then
+            originalValues.autofling = getgenv().autofling
+            getgenv().autofling = false
         end
     end
     
@@ -18006,14 +18015,14 @@ local function createPerfPatch()
         if originalValues.autoSayInterval then _G.ChatConfig.autoSayInterval = originalValues.autoSayInterval end
         if originalValues.microStep then _G.FlyConfig.MICRO_STEP_INTERVAL = originalValues.microStep end
         if originalValues.aimNPC ~= nil then _G.AimBotState.aimNPC = originalValues.aimNPC end
+        if originalValues.autofling ~= nil then getgenv().autofling = originalValues.autofling end
         
-        local autoVars = {"autoAttackEnabled", "autoHealEnabled", "autoSuppressEnabled", 
-                          "autoWhizzEnabled", "autoKillEnabled", "autoFling"}
-        for _, var in ipairs(autoVars) do
-            if originalValues[var] ~= nil then
-                getgenv()[var] = originalValues[var]
+        for name, handle in pairs(savedLoopHandles) do
+            if _G.ACSConfig then
+                _G.ACSConfig[name] = handle
             end
         end
+        savedLoopHandles = {}
     end
     
     local screenGui = Instance.new("ScreenGui")
@@ -18036,23 +18045,42 @@ local function createPerfPatch()
     corner.CornerRadius = UDim.new(0, 4)
     corner.Parent = button
     
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.new(1, 0, 0)
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = button
+    
+    local rainbowTask
+    local function startRainbow()
+        if rainbowTask then return end
+        rainbowTask = task.spawn(function()
+            local hue = 0
+            while true do
+                hue = (hue + 0.005) % 1
+                stroke.Color = Color3.fromHSV(hue, 1, 1)
+                task.wait(0.03)
+            end
+        end)
+    end
+    startRainbow()
+    
     button.MouseButton1Click:Connect(function()
         perfEnabled = not perfEnabled
         if perfEnabled then
             applyOptimizations()
             button.Text = "性能模式: 开"
             button.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-            XPHUBNotification:Notification({Title="性能优化", Text="已开启性能模式，降低占用", Icon="rbxassetid://136169594232359", Duration=3})
+            XPHUBNotification:Notification({Title="性能优化", Text="已开启性能模式，自动循环已暂停", Icon="rbxassetid://136169594232359", Duration=3})
         else
             restoreSettings()
             button.Text = "性能模式: 关"
             button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            XPHUBNotification:Notification({Title="性能优化", Text="已关闭性能模式，恢复设置", Icon="rbxassetid://136169594232359", Duration=3})
+            XPHUBNotification:Notification({Title="性能优化", Text="已关闭性能模式，请手动重新开启自动循环开关", Icon="rbxassetid://136169594232359", Duration=3})
         end
     end)
     
     local dragging = false
-    local dragInput
     local dragStart
     local startPos
     
@@ -18073,6 +18101,12 @@ local function createPerfPatch()
         if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
             local delta = input.Position - dragStart
             button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    
+    screenGui.AncestryChanged:Connect(function()
+        if not screenGui.Parent then
+            if rainbowTask then task.cancel(rainbowTask) end
         end
     end)
 end
