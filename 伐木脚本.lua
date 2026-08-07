@@ -98,8 +98,6 @@ local bai = {
     stopcar = false
 }
 
--- ========== 以下是功能函数（原样保留） ==========
-
 local function droptool(Position)
     local aQ = game.Players.LocalPlayer.Character;
     if aQ:FindFirstChildOfClass("Tool") then
@@ -1677,13 +1675,11 @@ function shuaxinlb(zji)
 end
 shuaxinlb(true)
 
--- ========== WindUI 界面 ==========
-
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/main%20(1).lua"))()
 
 local Window = WindUI:CreateWindow({
     Title = "小星--伐木大亨2",
-    Icon = "rbxassetid://18941716391",
+    Icon = "rbxassetid://136169594232359",
     IconThemed = true,
     Author = "<font color='#FFFFFF'>作者：小星</font>",
     Folder = "星脚本",
@@ -1749,8 +1745,8 @@ if mainFrame then
 end
 
 Window:EditOpenButton({
-    Title = "<font color='#0000FF'>星</font>-<font color='#00FF00'>脚本</font> ",
-    Icon = "rbxassetid://18941716391",
+    Title = "<font color='#0000FF'>星脚本</font>-<font color='#00FF00'>伐木2</font> ",
+    Icon = "rbxassetid://136169594232359",
     CornerRadius = UDim.new(1, 14),
     StrokeThickness = 2,
     Color = ColorSequence.new({
@@ -1764,7 +1760,6 @@ Window:EditOpenButton({
     })
 })
 
--- ========== 标签页 ==========
 
 local Tab1 = Window:Section({ Title = "玩家功能", Opened = true })
 local Tab = Window:Section({ Title = "主要功能", Opened = true })
@@ -1772,9 +1767,8 @@ local Tab2 = Window:Section({ Title = "环境", Opened = true })
 local Tab4 = Window:Section({ Title = "魔鬼功能", Opened = true })
 local Tab5 = Window:Section({ Title = "自动购买", Opened = true })
 
--- ========== Tab1: 玩家功能 ==========
 
-local PlayerSection = Tab1:Tab({ Title = "玩家", Icon = "rbxassetid://18941716391" })
+local PlayerSection = Tab1:Tab({ Title = "玩家", Icon = "rbxassetid://136169594232359" })
 PlayerSection:Slider({
     Title = "设置速度",
     Value = { Min = 16, Max = 600, Default = 16 },
@@ -1885,9 +1879,8 @@ PlayerSection:Toggle({
     end
 })
 
--- ========== 普通传送 ==========
 
-local TeleportSection = Tab1:Tab({ Title = "普通传送", Icon = "rbxassetid://18941716391" })
+local TeleportSection = Tab1:Tab({ Title = "普通传送", Icon = "rbxassetid://136169594232359" })
 local teleportLocations = {'出生点', '木材反斗城', '土地商店', '桥', '码头', '椰子岛', '洞穴', '鲨鱼斧合成', '火山', '沼泽', '家具店', '盒子车行', '连锁逻辑店', '鲍勃的小店', '画廊', '雪山', '灵视神殿', '怪人', '小绿盒', '滑雪小屋', '黄金木洞穴', '小鸟斧头', '灯塔', '回家'}
 TeleportSection:Dropdown({
     Title = "传送",
@@ -1952,9 +1945,8 @@ TeleportSection:Dropdown({
     end
 })
 
--- ========== 传送到树旁边 ==========
 
-local TreeTeleportSection = Tab1:Tab({ Title = "传送到树", Icon = "rbxassetid://18941716391" })
+local TreeTeleportSection = Tab1:Tab({ Title = "传送到树", Icon = "rbxassetid://136169594232359" })
 local treeList = {"普通树", "沼泽黄金", "樱花", "蓝木", "冰木", "火山木", "橡木", "巧克力木", "小星桦木", "黄金木", "雪地松", "僵尸木", "大巧克力树", "椰子树", "幻影木"}
 TreeTeleportSection:Dropdown({
     Title = "传送到树",
@@ -1991,9 +1983,8 @@ TreeTeleportSection:Dropdown({
     end
 })
 
--- ========== 汽车传送 ==========
 
-local CarTeleportSection = Tab1:Tab({ Title = "汽车传送", Icon = "rbxassetid://18941716391" })
+local CarTeleportSection = Tab1:Tab({ Title = "汽车传送", Icon = "rbxassetid://136169594232359" })
 CarTeleportSection:Dropdown({
     Title = "汽车传送",
     Values = teleportLocations,
@@ -2057,10 +2048,7 @@ CarTeleportSection:Dropdown({
     end
 })
 
--- ========== Tab: 主要功能 ==========
-
--- 斧头
-local AxeSection = Tab:Tab({ Title = "斧头", Icon = "rbxassetid://18941716391" })
+local AxeSection = Tab:Tab({ Title = "斧头", Icon = "rbxassetid://136169594232359" })
 AxeSection:Toggle({
     Title = "自动扔斧头",
     Default = false,
@@ -2162,8 +2150,8 @@ AxeSection:Toggle({
     end
 })
 
--- 基地
-local BaseSection = Tab:Tab({ Title = "基地", Icon = "rbxassetid://18941716391" })
+
+local BaseSection = Tab:Tab({ Title = "基地", Icon = "rbxassetid://136169594232359" })
 BaseSection:Button({
     Title = "点击土地免费获得",
     Callback = function()
@@ -2297,8 +2285,8 @@ BaseSection:Button({
     end
 })
 
--- 木头
-local WoodSection = Tab:Tab({ Title = "木头", Icon = "rbxassetid://18941716391" })
+
+local WoodSection = Tab:Tab({ Title = "木头", Icon = "rbxassetid://136169594232359" })
 WoodSection:Button({
     Title = "传送木头",
     Callback = function()
@@ -2796,8 +2784,8 @@ WoodSection:Button({
     end
 })
 
--- 带来树
-local BringTreeSection = Tab:Tab({ Title = "带来树", Icon = "rbxassetid://18941716391" })
+
+local BringTreeSection = Tab:Tab({ Title = "带来树", Icon = "rbxassetid://136169594232359" })
 local bringTreeList = {"普通树", '幻影木', "沼泽黄金", "樱花", "蓝木", "冰木", "火山木", "橡木", "巧克力木", "小星桦木", "黄金木", "雪地松", "僵尸木", "大巧克力树", "椰子树", '南瓜木', '幽灵木'}
 BringTreeSection:Dropdown({
     Title = "选择树",
@@ -2915,8 +2903,7 @@ BringTreeSection:Toggle({
     end
 })
 
--- 快速转钱
-local DonateSection = Tab:Tab({ Title = "快速转钱", Icon = "rbxassetid://18941716391" })
+local DonateSection = Tab:Tab({ Title = "快速转钱", Icon = "rbxassetid://136169594232359" })
 local playerDropdown = {}
 shuaxinlb(true)
 local donatePlayerDropdown = DonateSection:Dropdown({
@@ -2948,8 +2935,8 @@ DonateSection:Button({
     end
 })
 
--- 汽车
-local CarSection = Tab:Tab({ Title = "汽车", Icon = "rbxassetid://18941716391" })
+
+local CarSection = Tab:Tab({ Title = "汽车", Icon = "rbxassetid://136169594232359" })
 CarSection:Input({
     Title = "输入飞行速度",
     PlaceholderText = "输入数字",
@@ -3040,8 +3027,8 @@ CarSection:Slider({
     end
 })
 
--- 刷粉车
-local PinkCarSection = Tab:Tab({ Title = "刷粉车", Icon = "rbxassetid://18941716391" })
+
+local PinkCarSection = Tab:Tab({ Title = "刷粉车", Icon = "rbxassetid://136169594232359" })
 PinkCarSection:Button({
     Title = "获得选择工具",
     Callback = function()
@@ -3104,8 +3091,8 @@ PinkCarSection:Button({
     end
 })
 
--- 其他功能
-local OtherSection = Tab:Tab({ Title = "其他功能", Icon = "rbxassetid://18941716391" })
+
+local OtherSection = Tab:Tab({ Title = "其他功能", Icon = "rbxassetid://136169594232359" })
 OtherSection:Button({
     Title = "获得4个小工具",
     Callback = function()
@@ -3458,8 +3445,8 @@ OtherSection:Button({
     end
 })
 
--- 语言/说话
-local ChatSection = Tab:Tab({ Title = "语言", Icon = "rbxassetid://18941716391" })
+
+local ChatSection = Tab:Tab({ Title = "语言", Icon = "rbxassetid://136169594232359" })
 ChatSection:Input({
     Title = "你要说的话",
     PlaceholderText = "填写你想要说的话",
@@ -3508,8 +3495,8 @@ ChatSection:Toggle({
     end
 })
 
--- 娱乐区域
-local FunSection = Tab:Tab({ Title = "娱乐区域", Icon = "rbxassetid://18941716391" })
+
+local FunSection = Tab:Tab({ Title = "娱乐区域", Icon = "rbxassetid://136169594232359" })
 FunSection:Button({
     Title = "拿出可口可乐",
     Callback = function()
@@ -3553,8 +3540,8 @@ FunSection:Button({
     end
 })
 
--- 整理木板
-local OrganizePlankSection = Tab:Tab({ Title = "整理木板", Icon = "rbxassetid://18941716391" })
+
+local OrganizePlankSection = Tab:Tab({ Title = "整理木板", Icon = "rbxassetid://136169594232359" })
 local playerList = {}
 shuaxinlb(true)
 local orgPlayerDropdown = OrganizePlankSection:Dropdown({
@@ -3653,8 +3640,8 @@ OrganizePlankSection:Button({
     end
 })
 
--- 整理
-local OrganizeSection = Tab:Tab({ Title = "整理", Icon = "rbxassetid://18941716391" })
+
+local OrganizeSection = Tab:Tab({ Title = "整理", Icon = "rbxassetid://136169594232359" })
 local orgPlayerDropdown2 = OrganizeSection:Dropdown({
     Title = "选择玩家",
     Values = bai.dropdown,
@@ -3756,8 +3743,7 @@ OrganizeSection:Button({
     end
 })
 
--- 填充蓝图（用木头）
-local FillBlueprintSection = Tab:Tab({ Title = "填充蓝图", Icon = "rbxassetid://18941716391" })
+local FillBlueprintSection = Tab:Tab({ Title = "填充蓝图", Icon = "rbxassetid://136169594232359" })
 local fillWoodList = {"普通树", "沼泽黄金", "樱花", "蓝木", "冰木", "火山木", "橡木", "巧克力木", "小星桦木", "黄金木", "雪地松", "僵尸木", "大巧克力树", "椰子树", '幻影'}
 local fillWoodDropdown = FillBlueprintSection:Dropdown({
     Title = "选择木头类型",
@@ -3811,9 +3797,9 @@ FillBlueprintSection:Button({
     end
 })
 
--- ========== Tab2: 环境 ==========
 
-local EnvSection = Tab2:Tab({ Title = "环境", Icon = "rbxassetid://18941716391" })
+
+local EnvSection = Tab2:Tab({ Title = "环境", Icon = "rbxassetid://136169594232359" })
 EnvSection:Toggle({
     Title = "终日白天",
     Default = false,
@@ -4232,8 +4218,8 @@ EnvSection:Button({
     end
 })
 
--- 传送物品
-local TeleportItemSection = Tab:Tab({ Title = "传送物品", Icon = "rbxassetid://18941716391" })
+
+local TeleportItemSection = Tab:Tab({ Title = "传送物品", Icon = "rbxassetid://136169594232359" })
 local tpItemPlayerDropdown = TeleportItemSection:Dropdown({
     Title = "选择玩家",
     Values = bai.dropdown,
@@ -4489,9 +4475,7 @@ TeleportItemSection:Button({
     end
 })
 
--- ========== Tab4: 魔鬼功能 ==========
-
-local DevilSection = Tab4:Tab({ Title = "魔鬼功能(慎用)", Icon = "rbxassetid://18941716391" })
+local DevilSection = Tab4:Tab({ Title = "魔鬼功能(慎用)", Icon = "rbxassetid://136169594232359" })
 local devilPlayerDropdown = DevilSection:Dropdown({
     Title = "选择玩家名称",
     Values = bai.dropdown,
@@ -4903,9 +4887,8 @@ DevilSection:Toggle({
     end
 })
 
--- ========== Tab5: 自动购买 ==========
 
-local AutoBuySection = Tab5:Tab({ Title = "自动购买V2(测试)", Icon = "rbxassetid://18941716391" })
+local AutoBuySection = Tab5:Tab({ Title = "自动购买V2(测试)", Icon = "rbxassetid://136169594232359" })
 AutoBuySection:Input({
     Title = "购买数量",
     PlaceholderText = "输入数字",
@@ -5085,8 +5068,7 @@ AutoBuySection:Button({
     end
 })
 
--- 其他自动购买
-local AutoBuyOtherSection = Tab5:Tab({ Title = "其他", Icon = "rbxassetid://18941716391" })
+local AutoBuyOtherSection = Tab5:Tab({ Title = "其他", Icon = "rbxassetid://136169594232359" })
 AutoBuyOtherSection:Button({
     Title = "买黄金蓝图",
     Callback = function()
