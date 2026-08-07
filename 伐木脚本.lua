@@ -1782,7 +1782,7 @@ local function setupRainbowText()
         local mainFrame = Window.UIElements.Main
         if mainFrame then
             for _, label in ipairs(mainFrame:GetDescendants()) do
-                if label:IsA("TextLabel") and label.Text and string.find(label.Text, "皮门天下") then
+                if label:IsA("TextLabel") and label.Text and (string.find(label.Text, "皮门天下") or string.find(label.Text, "当前时间")) then
                     local oldGradient = label:FindFirstChild("RainbowTextGradient")
                     if oldGradient then oldGradient:Destroy() end
                     local rainbowGradient = Instance.new("UIGradient")
@@ -1804,7 +1804,6 @@ local function setupRainbowText()
                             rainbowGradient.Rotation = (rainbowGradient.Rotation + 1.5) % 360
                         end
                     end)
-                    return
                 end
             end
         end
