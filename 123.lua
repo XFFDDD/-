@@ -58,6 +58,18 @@ local bai = {
     stopcar = false,
     bringtree = false,
     sayfast = false,
+    autosell = false,
+    autoopen = false,
+    autofish = false,
+    noclip = false,
+    invis = false,
+    waterwalk = false,
+    nofog = false,
+    day = false,
+    night = false,
+    bridge = false,
+    axisX = 1,
+    axisZ = 3,
 }
 
 function notify(title, text, duration)
@@ -493,11 +505,14 @@ function applyLight(value)
 end
 
 function NoClip(enabled)
+    bai.noclip = enabled
     if enabled then
         game:GetService("RunService").Stepped:Connect(function()
-            for _, v in pairs(lp.Character:GetChildren()) do
-                if v:IsA("BasePart") then
-                    v.CanCollide = false
+            if bai.noclip then
+                for _, v in pairs(lp.Character:GetChildren()) do
+                    if v:IsA("BasePart") then
+                        v.CanCollide = false
+                    end
                 end
             end
         end)
@@ -505,6 +520,7 @@ function NoClip(enabled)
 end
 
 function TurnInvisible()
+    bai.invis = true
     for _, v in pairs(lp.Character:GetDescendants()) do
         if v:IsA("BasePart") then
             v.Transparency = 1
@@ -513,6 +529,7 @@ function TurnInvisible()
 end
 
 function TurnVisible()
+    bai.invis = false
     for _, v in pairs(lp.Character:GetDescendants()) do
         if v:IsA("BasePart") then
             v.Transparency = 0
@@ -594,18 +611,6 @@ function donate(plr, amount)
     notify('小星', '转钱 ' .. amount .. ' 给 ' .. plr, 4)
 end
 
-function lowerBridge(value)
-    if value == 'Higher' then
-        for _, v in pairs(workspace.Bridge.VerticalLiftBridge.Lift:GetChildren()) do
-            v.CFrame = v.CFrame + Vector3.new(0, 26, 0)
-        end
-    elseif value == 'Lower' then
-        for _, v in pairs(workspace.Bridge.VerticalLiftBridge.Lift:GetChildren()) do
-            v.CFrame = v.CFrame + Vector3.new(0, -26, 0)
-        end
-    end
-end
-
 function burnAllShopItems()
     local found = false
     for _, plate in pairs(workspace.PlayerModels:GetChildren()) do
@@ -664,13 +669,247 @@ function axefily()
     end)
 end
 
+function getSpecialID(Shop)
+    local cashierIds = {}
+    local connection = replicatedStorage.NPCDialog.PromptChat.OnClientEvent:Connect(function(ba, data)
+        if cashierIds[data.Name] == nil then
+            cashierIds[data.Name] = data.ID
+        end
+    end)
+    replicatedStorage.NPCDialog.SetChattingValue:InvokeServer(1)
+    wait(2)
+    connection:Disconnect()
+    replicatedStorage.NPCDialog.SetChattingValue:InvokeServer(0)
+    return cashierIds[Shop]
+end
+
+function DeleteTree()
+    local tool = Instance.new("Tool", lp.Backpack)
+    tool.Name = "点击要删除的树或木板"
+    tool.RequiresHandle = false
+    tool.Activated:Connect(function()
+        local target = mouse.Target.Parent
+        local oldpos = lp.Character.HumanoidRootPart.CFrame
+        if not target:FindFirstChild("WoodSection") then
+            return
+        end
+        if target:FindFirstChild("Owner") and target.Owner.Value == lp or target.Owner.Value == nil then
+            local section
+            if not target:FindFirstChild("RootCut") and target.Parent.Name == "TreeRegion" then
+                for _, v in pairs(target:GetChildren()) do
+                    if v.Name == "WoodSection" and v:FindFirstChild("ID") and v.ID.Value == 1 then
+                        section = v
+                    end
+                end
+            else
+                section = target.WoodSection
+            end
+            tp(section.CFrame)
+            for i = 1, 3 do
+                spawn(function()
+                    for i = 1, 20 do
+                        replicatedStorage.Interaction.ClientIsDragging:FireServer(target)
+                        replicatedStorage.Interaction.DestroyStructure:FireServer(target)
+                        wait()
+                    end
+                end)
+                wait(.1)
+            end
+            tp(oldpos)
+        end
+    end)
+end
+
+function lumbsmasher_legitpaint(wood_class, blueprint)
+    local oldpos = lp.Character.HumanoidRootPart.CFrame
+    local remote = replicatedStorage.PlaceStructure.ClientPlacedStructure
+    local bp_type = blueprint.ItemName.Value
+    
+    local wood = 1
+    if lp.SuperBlueprint and lp.SuperBlueprint.Value then
+        wood = 1
+    end
+    
+    local tool = barkgetBestAxe()
+    if not tool then
+        notify("小星", "需要斧头", 3)
+        return
+    end
+    
+    local required_wood = wood
+    local woodSection = nil
+    local minSize = 9e99
+    
+    for _, v in pairs(workspace:GetChildren()) do
+        if v.Name == 'TreeRegion' then
+            for _, tree in pairs(v:GetChildren()) do
+                if tree:FindFirstChild('Leaves') and tree:FindFirstChild('WoodSection') and
+                    tree:FindFirstChild('TreeClass') and tree.TreeClass.Value == wood_class then
+                    for _, section in pairs(tree:GetChildren()) do
+                        if section.Name == 'WoodSection' then
+                            local size = section.Size.X * section.Size.Y * section.Size.Z
+                            if size > required_wood and #section.ChildIDs:GetChildren() == 0 then
+                                if minSize > section.Size.X then
+                                    minSize = section.Size.X
+                                    woodSection = section
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    if not woodSection then
+        notify("小星", "没有找到树", 3)
+        return
+    end
+    
+    local chopped = false
+    local treeConn = workspace.LogModels.ChildAdded:Connect(function(add)
+        local owner = add:WaitForChild('Owner')
+        if add.Owner.Value == lp and add.TreeClass.Value == wood_class and add:FindFirstChild("WoodSection") then
+            chopped = add
+            treeConn:Disconnect()
+        end
+    end)
+    
+    local cutSize = required_wood / (woodSection.Size.X * woodSection.Size.X) + 0.01
+    local axeStats = getToolStats(tool)
+    
+    local function axeCut(v, id, h)
+        replicatedStorage.Interaction.RemoteProxy:FireServer(v.CutEvent, {
+            tool = tool,
+            faceVector = Vector3.new(0, 0, -1),
+            height = h,
+            sectionId = id,
+            hitPoints = axeStats.Damage,
+            cooldown = 0.112,
+            cuttingClass = "Axe"
+        })
+        wait()
+    end
+    
+    local iterations = 0
+    while not chopped do
+        iterations = iterations + 1
+        if iterations > 1000 then
+            replicatedStorage.Interaction.ClientIsDragging:FireServer(woodSection.Parent)
+            replicatedStorage.Interaction.DestroyStructure:FireServer(woodSection.Parent)
+            chopped = true
+        end
+        tp(woodSection.CFrame + Vector3.new(4, 2, 2))
+        axeCut(woodSection.Parent, woodSection.ID.Value, woodSection.Size.Y - cutSize)
+    end
+    
+    local target_cframe = blueprint.MainCFrame and blueprint.MainCFrame.Value or blueprint.PrimaryPart.CFrame
+    local sawmill = getBestSawmill()
+    if not sawmill then
+        notify("小星", "需要锯木机", 3)
+        return
+    end
+    
+    local fill_target_cframe = sawmill.Particles.CFrame + Vector3.new(0, 1, 0)
+    
+    local sawed = false
+    local sawConn = workspace.PlayerModels.ChildAdded:Connect(function(add)
+        local owner = add:WaitForChild('Owner')
+        if add.Owner.Value == lp and add:FindFirstChild("WoodSection") then
+            if not add:FindFirstChild('TreeClass') then
+                repeat wait() until add:FindFirstChild('TreeClass')
+            end
+            if add.TreeClass.Value == wood_class then
+                sawed = add
+                sawConn:Disconnect()
+            end
+        end
+    end)
+    
+    iterations = 0
+    while chopped and chopped.Parent ~= nil do
+        if sawed then break end
+        iterations = iterations + 1
+        if iterations > 300 then
+            notify("小星", "处理树失败", 3)
+            break
+        end
+        tp(CFrame.new(chopped.WoodSection.Position) + Vector3.new(0, 4, 0))
+        replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
+        chopped.PrimaryPart = chopped.WoodSection
+        chopped:SetPrimaryPartCFrame(sawmill.Particles.CFrame)
+        replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
+        wait(2)
+    end
+    
+    repeat wait() until sawed
+    
+    local placed = false
+    local structConn = workspace.PlayerModels.ChildAdded:Connect(function(child)
+        local owner = child:WaitForChild("Owner")
+        if owner.Value == lp and child:FindFirstChild("Type") and child.Type.Value == "Structure" then
+            if not child:FindFirstChild("BuildDependentWood") then
+                notify("小星", "填充失败", 3)
+                return
+            end
+            structConn:Disconnect()
+            local wood_type = child:FindFirstChild("BlueprintWoodClass") and child.BlueprintWoodClass.Value or nil
+            remote:FireServer(child.ItemName.Value, target_cframe, lp, wood_type, child, true, nil)
+            placed = true
+        end
+    end)
+    
+    iterations = 0
+    while sawed and sawed.Parent ~= nil do
+        if iterations > 50 then
+            replicatedStorage.Interaction.DestroyStructure:FireServer(sawed)
+            replicatedStorage.Interaction.DestroyStructure:FireServer(blueprint)
+            notify("小星", "尝试太多次", 3)
+            break
+        end
+        iterations = iterations + 1
+        if sawed.Parent == nil then break end
+        
+        local conn, bpMade
+        conn = workspace.PlayerModels.ChildAdded:Connect(function(child)
+            if child:WaitForChild("Owner") and child.Owner.Value == lp and
+                child:FindFirstChild("Type") and child.Type.Value == "Blueprint" then
+                conn:Disconnect()
+                blueprint = child
+                bpMade = true
+            end
+        end)
+        
+        replicatedStorage.PlaceStructure.ClientPlacedBlueprint:FireServer(bp_type,
+            sawed.WoodSection.CFrame, lp, blueprint, blueprint.Parent ~= nil)
+        
+        local waitIter = 0
+        repeat
+            if waitIter > 500 then
+                notify("小星", "没有找到蓝图", 3)
+                break
+            end
+            wait()
+            waitIter = waitIter + 1
+        until bpMade or placed
+        
+        if placed then
+            pcall(conn.Disconnect, conn)
+        end
+    end
+    
+    repeat wait() until placed
+    tp(oldpos)
+    notify("小星", "填充完成", 3)
+end
+
 local Window = WindUI:CreateWindow({
     Title = "小星 - 伐木大亨2",
     Icon = "rbxassetid://18941716391",
     IconThemed = true,
     Author = "<font color='#00FFFF'>作者: 小星</font>",
     Folder = "星脚本",
-    Size = UDim2.fromOffset(320, 280),
+    Size = UDim2.fromOffset(340, 290),
     Transparent = true,
     Theme = "Dark",
     BackgroundImageTransparency = 0.4,
@@ -767,6 +1006,14 @@ playerTab:Slider({
     end
 })
 
+playerTab:Slider({
+    Title = "相机焦距",
+    Value = { Min = 0, Max = 9999, Default = 100 },
+    Callback = function(v)
+        lp.CameraMaxZoomDistance = v
+    end
+})
+
 playerTab:Toggle({
     Title = "穿墙模式",
     Default = false,
@@ -804,6 +1051,14 @@ playerTab:Button({
         if lp.Character and lp.Character:FindFirstChild("Head") then
             lp.Character.Head:Destroy()
         end
+    end
+})
+
+playerTab:Button({
+    Title = "解锁最大焦距",
+    Callback = function()
+        lp.CameraMaxZoomDistance = 9e9
+        notify("小星", "已解锁最大焦距", 2)
     end
 })
 
@@ -873,6 +1128,34 @@ tpTab:Dropdown({
         elseif tpCoords[v] then
             carTeleport(tpCoords[v])
         end
+    end
+})
+
+tpTab:Dropdown({
+    Title = "传送到树",
+    Values = {'普通树', '幻影木', '沼泽黄金', '樱花', '蓝木', '冰木', '火山木', '橡木', '巧克力木', '小星桦木', '黄金木', '雪地松', '僵尸木', '大巧克力树', '椰子树', '南瓜木', '幽灵木'},
+    Value = "普通树",
+    Callback = function(v)
+        local treeMap = {
+            ['普通树'] = 'Generic', ['幻影木'] = 'LoneCave', ['沼泽黄金'] = 'GoldSwampy',
+            ['樱花'] = 'Cherry', ['蓝木'] = 'CaveCrawler', ['冰木'] = 'Frost',
+            ['火山木'] = 'Volcano', ['橡木'] = 'Oak', ['巧克力木'] = 'Walnut',
+            ['小星桦木'] = 'Birch', ['黄金木'] = 'SnowGlow', ['雪地松'] = 'Pine',
+            ['僵尸木'] = 'GreenSwampy', ['大巧克力树'] = 'Koa', ['椰子树'] = 'Palm',
+            ['南瓜木'] = 'SpookyNeon', ['幽灵木'] = 'Spooky'
+        }
+        local treeClass = treeMap[v] or 'Generic'
+        for _, region in pairs(workspace:GetChildren()) do
+            if region.Name == "TreeRegion" then
+                for _, tree in pairs(region:GetChildren()) do
+                    if tree:FindFirstChild("TreeClass") and tree.TreeClass.Value == treeClass then
+                        tp(tree.WoodSection.CFrame + Vector3.new(0, 5, 0))
+                        return
+                    end
+                end
+            end
+        end
+        notify("小星", "没有找到该树种", 3)
     end
 })
 
@@ -950,6 +1233,7 @@ treeTab:Toggle({
     Callback = function(v)
         bai.autofarm1 = v
         if v then
+            notify("小星", "请确保自动卖木头已开启", 4)
             spawn(function()
                 while bai.autofarm1 do
                     lp.Character:MoveTo(Vector3.new(315, -0.296, 102.791))
@@ -964,19 +1248,62 @@ treeTab:Toggle({
 })
 
 treeTab:Button({
-    Title = "传送至树",
+    Title = "分解树",
     Callback = function()
-        for _, v in pairs(workspace:GetChildren()) do
-            if v.Name == "TreeRegion" then
-                for _, tree in pairs(v:GetChildren()) do
-                    if tree:FindFirstChild("TreeClass") and tree.TreeClass.Value == bai.cuttreeselect then
-                        tp(tree.WoodSection.CFrame + Vector3.new(0, 5, 0))
-                        return
-                    end
+        local oldpos = lp.Character.HumanoidRootPart.CFrame
+        local logChopped = false
+        local branchAdded = workspace.LogModels.ChildAdded:Connect(function(v)
+            if v:WaitForChild("Owner") and v.Owner.Value == lp and v:WaitForChild("WoodSection") then
+                logChopped = true
+            end
+        end)
+        
+        notify("小星", "点击一棵树", 3)
+        local connection = mouse.Button1Up:Connect(function()
+            local clicked = mouse.Target
+            if clicked.Parent:FindFirstAncestor("LogModels") and clicked.Parent:FindFirstChild("Owner") and clicked.Parent.Owner.Value == lp then
+                bai.treeToJointCut = clicked.Parent
+            end
+        end)
+        
+        repeat wait() until bai.treeToJointCut ~= nil
+        
+        for _, v in pairs(bai.treeToJointCut:GetChildren()) do
+            if v.Name == "WoodSection" and v:FindFirstChild("ID") and v.ID.Value ~= 1 then
+                tp(v.CFrame)
+                local success, data = barkgetBestAxe()
+                if data then
+                    repeat
+                        replicatedStorage.Interaction.RemoteProxy:FireServer(v.Parent.CutEvent, {
+                            tool = data,
+                            faceVector = Vector3.new(-1, 0, 0),
+                            height = 0.2,
+                            sectionId = v.ID.Value,
+                            hitPoints = getToolStats(data).Damage,
+                            cooldown = getToolStats(data).SwingCooldown,
+                            cuttingClass = "Axe"
+                        })
+                        wait()
+                    until logChopped
+                    logChopped = false
+                    wait(1)
                 end
             end
         end
-        notify("小星", "没有找到树", 3)
+        
+        bai.treeToJointCut = nil
+        branchAdded:Disconnect()
+        connection:Disconnect()
+        tp(oldpos)
+        notify("小星", "分解完成", 3)
+    end
+})
+
+treeTab:Button({
+    Title = "删除树/木板",
+    Callback = function()
+        DeleteTree()
+        notify("小星", "已获得删除工具", 3)
     end
 })
 
@@ -1031,6 +1358,7 @@ axeTab:Textbox({
 axeTab:Button({
     Title = "加载复制斧头",
     Callback = function()
+        local oldpos = lp.Character.HumanoidRootPart.CFrame
         CanClientLoad()
         wait(1)
         if lp.Character and lp.Character:FindFirstChild("Head") then
@@ -1214,6 +1542,47 @@ woodTab:Button({
     end
 })
 
+woodTab:Button({
+    Title = "处理树-半自动",
+    Callback = function()
+        local oldpos = lp.Character.HumanoidRootPart.CFrame
+        local wood = nil
+        local sell = CFrame.new(314.943634, -6, 82.8602905)
+        
+        notify("小星", "点击一棵树", 3)
+        local connection = mouse.Button1Up:Connect(function()
+            local obj = mouse.Target.Parent
+            if obj:FindFirstChild("Owner") and obj.Owner.Value == lp and obj:FindFirstChild("WoodSection") then
+                wood = obj
+                notify("小星", "已选择树", 2)
+            end
+        end)
+        
+        repeat wait(.01) until wood ~= nil
+        connection:Disconnect()
+        
+        tp(wood.WoodSection.CFrame)
+        spawn(function()
+            for i = 1, 20 do
+                wood:PivotTo(sell)
+                replicatedStorage.Interaction.ClientIsDragging:FireServer(wood)
+                wait()
+            end
+        end)
+        wait(0.1)
+        tp(wood.WoodSection.CFrame)
+        wait(1.2)
+        
+        for i = 1, 20 do
+            replicatedStorage.Interaction.ClientIsDragging:FireServer(wood)
+            wood:MoveTo(oldpos.p)
+            wait()
+        end
+        tp(oldpos)
+        notify("小星", "处理完成", 3)
+    end
+})
+
 local miscTab = mainTab:Tab({ Title = "其他", Icon = "rbxassetid://10728953248" })
 
 miscTab:Textbox({
@@ -1281,6 +1650,7 @@ miscTab:Toggle({
     Title = "远程打开物品",
     Default = false,
     Callback = function(v)
+        bai.autoopen = v
         if v then
             notify('小星', '点击物品打开', 3)
             bai.openItem = mouse.Button1Down:Connect(function()
@@ -1303,6 +1673,7 @@ miscTab:Button({
         local greenBox = workspace.Region_Volcano.VolcanoWin
         firetouchinterest(greenBox, lp.Character.HumanoidRootPart, 0)
         firetouchinterest(greenBox, lp.Character.HumanoidRootPart, 1)
+        notify("小星", "已获得小绿盒", 2)
     end
 })
 
@@ -1318,6 +1689,19 @@ miscTab:Button({
         end)
         tool.Parent = lp.Backpack
         notify("小星", "已获得点击传送工具", 3)
+    end
+})
+
+miscTab:Button({
+    Title = "获取4个小工具",
+    Callback = function()
+        if lp.Backpack:FindFirstChildOfClass('HopperBin') then
+            return
+        end
+        for i = 1, 4 do
+            Instance.new('HopperBin', lp.Backpack).BinType = i
+        end
+        notify("小星", "已获得4个小工具", 3)
     end
 })
 
@@ -1445,15 +1829,127 @@ playerListTab:Button({
     end
 })
 
+playerListTab:Button({
+    Title = "虚空搞人",
+    Callback = function()
+        local tool = barkgetBestAxe()
+        if not tool then
+            notify("小星", "需要斧头", 3)
+            return
+        end
+        local target = game:GetService('Players'):FindFirstChild(bai.playernamedied)
+        if not target then
+            return
+        end
+        local now = CFrame.new(9e9, 9e9, 9e9)
+        lp.Character.HumanoidRootPart.CFrame = now
+        wait(0.1)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+        wait(0.1)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+        wait(0.3)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+    end
+})
+
+playerListTab:Button({
+    Title = "岩浆杀人",
+    Callback = function()
+        local tool = barkgetBestAxe()
+        if not tool then
+            notify("小星", "需要斧头", 3)
+            return
+        end
+        local target = game:GetService('Players'):FindFirstChild(bai.playernamedied)
+        if not target then
+            return
+        end
+        local now = CFrame.new(-1685, 200, 1216)
+        lp.Character.HumanoidRootPart.CFrame = now
+        wait(0.1)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+        wait(0.1)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+        wait(0.3)
+        if target.Character then
+            target.Character.HumanoidRootPart.CFrame = now
+        end
+    end
+})
+
+playerListTab:Button({
+    Title = "斧头带人",
+    Callback = function()
+        local target = game:GetService('Players'):FindFirstChild(bai.playernamedied)
+        if not target or not target.Character then
+            return
+        end
+        local now = lp.Character.HumanoidRootPart.CFrame
+        target.Character.HumanoidRootPart.CFrame = now
+        wait(0.1)
+        target.Character.HumanoidRootPart.CFrame = now
+        wait(0.3)
+        target.Character.HumanoidRootPart.CFrame = now
+        for i = 1, 60 do
+            target.Character.HumanoidRootPart.CFrame = now
+            wait(.1)
+        end
+    end
+})
+
+playerListTab:Toggle({
+    Title = "查看玩家",
+    Default = false,
+    Callback = function(v)
+        if v then
+            local target = game:GetService('Players'):FindFirstChild(bai.playernamedied)
+            if target and target.Character then
+                workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
+            end
+        else
+            workspace.CurrentCamera.CameraSubject = lp.Character.Humanoid
+        end
+    end
+})
+
+playerListTab:Toggle({
+    Title = "查看玩家基地",
+    Default = false,
+    Callback = function(v)
+        local see = nil
+        for _, prop in pairs(workspace.Properties:GetChildren()) do
+            if prop.Owner.Value == game:GetService('Players'):FindFirstChild(bai.playernamedied) then
+                see = prop.OriginSquare
+            end
+        end
+        if v and see then
+            workspace.CurrentCamera.CameraSubject = see
+        else
+            workspace.CurrentCamera.CameraSubject = lp.Character.Humanoid
+        end
+    end
+})
+
 local envTab = Window:Section({ Title = "环境", Opened = false })
 
 envTab:Toggle({
     Title = "终日白天",
     Default = false,
     Callback = function(v)
+        bai.day = v
         if v then
             spawn(function()
-                while v do
+                while bai.day do
                     game:GetService('Lighting').TimeOfDay = '12:00:00'
                     wait()
                 end
@@ -1466,9 +1962,10 @@ envTab:Toggle({
     Title = "终日黑夜",
     Default = false,
     Callback = function(v)
+        bai.night = v
         if v then
             spawn(function()
-                while v do
+                while bai.night do
                     game:GetService('Lighting').TimeOfDay = '2:00:00'
                     wait()
                 end
@@ -1481,9 +1978,10 @@ envTab:Toggle({
     Title = "消除雾",
     Default = false,
     Callback = function(v)
+        bai.nofog = v
         if v then
             spawn(function()
-                while v do
+                while bai.nofog do
                     game:GetService('Lighting').FogEnd = 1000000
                     wait()
                 end
@@ -1498,6 +1996,7 @@ envTab:Toggle({
     Title = "水上行走",
     Default = false,
     Callback = function(v)
+        bai.waterwalk = v
         for _, water in pairs(workspace.Water:GetChildren()) do
             if water:IsA("BasePart") then
                 water.CanCollide = v
@@ -1515,6 +2014,7 @@ envTab:Toggle({
     Title = "放下桥",
     Default = false,
     Callback = function(v)
+        bai.bridge = v
         if v then
             lowerBridge("Lower")
         else
@@ -1542,6 +2042,7 @@ envTab:Button({
                 end
             end
         end
+        notify("小星", "已删除岩浆", 2)
     end
 })
 
@@ -1553,6 +2054,7 @@ envTab:Button({
                 v.Transparency = 1
             end
         end
+        notify("小星", "已删除水", 2)
     end
 })
 
@@ -1564,6 +2066,7 @@ envTab:Button({
                 workspace.Region_MazeCave.Blockade['Blockade' .. i]:Destroy()
             end)
         end
+        notify("小星", "已删除迷宫门", 2)
     end
 })
 
@@ -1571,6 +2074,97 @@ envTab:Button({
     Title = "查看游戏时间",
     Callback = function()
         notify("小星", "当前时间: " .. tostring(game.Lighting.TimeOfDay), 3)
+    end
+})
+
+envTab:Button({
+    Title = "自定义亮度",
+    Callback = function()
+        local brightness = tonumber(mouse.Target and mouse.Target.Parent and mouse.Target.Parent.Text or "10")
+        game:GetService("Lighting").Brightness = brightness / 10
+        notify("小星", "亮度已设为 " .. brightness, 2)
+    end
+})
+
+envTab:Button({
+    Title = "提高画质",
+    Callback = function()
+        local light = game.Lighting
+        for _, v in pairs(light:GetChildren()) do
+            v:Destroy()
+        end
+        
+        local color = Instance.new("ColorCorrectionEffect", light)
+        color.Enabled = true
+        color.Contrast = 0.15
+        color.Brightness = 0.1
+        color.Saturation = 0.25
+        
+        local bloom = Instance.new("BloomEffect", light)
+        bloom.Enabled = true
+        bloom.Intensity = 0.05
+        bloom.Size = 32
+        bloom.Threshold = 1
+        
+        local sun = Instance.new("SunRaysEffect", light)
+        sun.Enabled = true
+        sun.Intensity = 0.2
+        sun.Spread = 1
+        
+        light.Brightness = 4
+        light.GlobalShadows = true
+        notify("小星", "画质已提升", 2)
+    end
+})
+
+envTab:Button({
+    Title = "关/开家具店门",
+    Callback = function()
+        pcall(function()
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.FurnitureStore.LDoor.ButtonRemote_Toggle)
+            wait(0.5)
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.FurnitureStore.RDoor.ButtonRemote_Toggle)
+        end)
+    end
+})
+
+envTab:Button({
+    Title = "关/开逻辑店门",
+    Callback = function()
+        pcall(function()
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.LogicStore.LDoor.ButtonRemote_Toggle)
+            wait(0.5)
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.LogicStore.RDoor.ButtonRemote_Toggle)
+        end)
+    end
+})
+
+envTab:Button({
+    Title = "关/开车行门",
+    Callback = function()
+        pcall(function()
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.CarStore.LDoor.ButtonRemote_Toggle)
+            wait(0.5)
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.CarStore.RDoor.ButtonRemote_Toggle)
+        end)
+    end
+})
+
+envTab:Button({
+    Title = "打开鲨鱼斧门",
+    Callback = function()
+        pcall(function()
+            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Region_Snow.Den.Hatch.ButtonRemote_Hinge)
+        end)
+    end
+})
+
+envTab:Button({
+    Title = "删除鲨鱼斧门",
+    Callback = function()
+        pcall(function()
+            workspace.Region_Snow.Den.Hatch:Destroy()
+        end)
     end
 })
 
@@ -1587,9 +2181,9 @@ local itemList = {
     '波纹墙立柱', '锯木机02', '漏斗式传送带', '小型地板', '小型瓷砖',
     '矮波纹墙角', '波纹墙', '大型地板', '微型瓷砖', '微型地板', '1/1木楔',
     '左转直式传送带', '银斧头', '切割机', '基础斧头', '右转传送带', '普通斧头',
-    '转向传送带支架', '传送带支架', '波纹墙角立柱', '楼梯', '陡峭楼梯', '钢斧',
+    '转向传送带支架', '传送带支架', '楼梯', '陡峭楼梯', '钢斧',
     '标志杆', '梯子', '大型瓷砖', '瓷砖', '硬化斧', '半截门', '木头清扫机',
-    '光滑墙立柱', '沙子袋', '小型拖车', '531式拖车', '小汽车XL', '大卡车',
+    '沙子袋', '小型拖车', '531式拖车', '小汽车XL', '大卡车',
     '长沙发', '洗碗机', '薄柜子', '冰箱', '火炉', '马桶', '双人沙发', '床',
     '落地灯', '台灯', '微型玻璃板', '小型玻璃板', '玻璃板', '大型玻璃板',
     '玻璃门', '琥珀色冰柱灯串', '红色冰柱灯串', '绿色冰柱灯串', '蓝色冰柱灯串',
@@ -1767,9 +2361,10 @@ autoBuyTab:Button({
         BuyItem({
             Character = strangeMan,
             Name = 'Strange Man',
-            ID = 13,
+            ID = getSpecialID('Strange Man') or 13,
             Dialog = strangeMan.Dialog
         })
+        notify("小星", "已购买黄金蓝图", 2)
     end
 })
 
@@ -1780,9 +2375,10 @@ autoBuyTab:Button({
         BuyItem({
             Character = seranok,
             Name = 'Seranok',
-            ID = 14,
+            ID = getSpecialID('Seranok') or 14,
             Dialog = seranok.Dialog
         })
+        notify("小星", "已购买桥", 2)
     end
 })
 
@@ -1793,9 +2389,10 @@ autoBuyTab:Button({
         BuyItem({
             Character = hoover,
             Name = 'Hoover',
-            ID = 15,
+            ID = getSpecialID('Hoover') or 15,
             Dialog = hoover.Dialog
         })
+        notify("小星", "已购买船票", 2)
     end
 })
 
@@ -1958,189 +2555,6 @@ fillTab:Button({
             local target = getMouseTarget()
             if target and target.Parent:FindFirstChild("Type") and target.Parent.Type.Value == "Blueprint" and
                 target.Parent:FindFirstChild("Owner") then
-                local function lumbsmasher_legitpaint(wood_class, blueprint)
-                    local oldpos = lp.Character.HumanoidRootPart.CFrame
-                    local remote = replicatedStorage.PlaceStructure.ClientPlacedStructure
-                    local bp_type = blueprint.ItemName.Value
-                    
-                    local wood = 1
-                    if lp.SuperBlueprint and lp.SuperBlueprint.Value then
-                        wood = 1
-                    end
-                    
-                    local tool = barkgetBestAxe()
-                    if not tool then
-                        notify("小星", "需要斧头", 3)
-                        return
-                    end
-                    
-                    local required_wood = wood
-                    local woodSection = nil
-                    local minSize = 9e99
-                    
-                    for _, v in pairs(workspace:GetChildren()) do
-                        if v.Name == 'TreeRegion' then
-                            for _, tree in pairs(v:GetChildren()) do
-                                if tree:FindFirstChild('Leaves') and tree:FindFirstChild('WoodSection') and
-                                    tree:FindFirstChild('TreeClass') and tree.TreeClass.Value == wood_class then
-                                    for _, section in pairs(tree:GetChildren()) do
-                                        if section.Name == 'WoodSection' then
-                                            local size = section.Size.X * section.Size.Y * section.Size.Z
-                                            if size > required_wood and #section.ChildIDs:GetChildren() == 0 then
-                                                if minSize > section.Size.X then
-                                                    minSize = section.Size.X
-                                                    woodSection = section
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    if not woodSection then
-                        notify("小星", "没有找到树", 3)
-                        return
-                    end
-                    
-                    local chopped = false
-                    local treeConn = workspace.LogModels.ChildAdded:Connect(function(add)
-                        local owner = add:WaitForChild('Owner')
-                        if add.Owner.Value == lp and add.TreeClass.Value == wood_class and add:FindFirstChild("WoodSection") then
-                            chopped = add
-                            treeConn:Disconnect()
-                        end
-                    end)
-                    
-                    local cutSize = required_wood / (woodSection.Size.X * woodSection.Size.X) + 0.01
-                    local axeStats = getToolStats(tool)
-                    
-                    local function axeCut(v, id, h)
-                        replicatedStorage.Interaction.RemoteProxy:FireServer(v.CutEvent, {
-                            tool = tool,
-                            faceVector = Vector3.new(0, 0, -1),
-                            height = h,
-                            sectionId = id,
-                            hitPoints = axeStats.Damage,
-                            cooldown = 0.112,
-                            cuttingClass = "Axe"
-                        })
-                        wait()
-                    end
-                    
-                    local iterations = 0
-                    while not chopped do
-                        iterations = iterations + 1
-                        if iterations > 1000 then
-                            replicatedStorage.Interaction.ClientIsDragging:FireServer(woodSection.Parent)
-                            replicatedStorage.Interaction.DestroyStructure:FireServer(woodSection.Parent)
-                            chopped = true
-                        end
-                        tp(woodSection.CFrame + Vector3.new(4, 2, 2))
-                        axeCut(woodSection.Parent, woodSection.ID.Value, woodSection.Size.Y - cutSize)
-                    end
-                    
-                    local target_cframe = blueprint.MainCFrame and blueprint.MainCFrame.Value or blueprint.PrimaryPart.CFrame
-                    local sawmill = getBestSawmill()
-                    if not sawmill then
-                        notify("小星", "需要锯木机", 3)
-                        return
-                    end
-                    
-                    local fill_target_cframe = sawmill.Particles.CFrame + Vector3.new(0, 1, 0)
-                    
-                    local sawed = false
-                    local sawConn = workspace.PlayerModels.ChildAdded:Connect(function(add)
-                        local owner = add:WaitForChild('Owner')
-                        if add.Owner.Value == lp and add:FindFirstChild("WoodSection") then
-                            if not add:FindFirstChild('TreeClass') then
-                                repeat wait() until add:FindFirstChild('TreeClass')
-                            end
-                            if add.TreeClass.Value == wood_class then
-                                sawed = add
-                                sawConn:Disconnect()
-                            end
-                        end
-                    end)
-                    
-                    iterations = 0
-                    while chopped and chopped.Parent ~= nil do
-                        if sawed then break end
-                        iterations = iterations + 1
-                        if iterations > 300 then
-                            notify("小星", "处理树失败", 3)
-                            break
-                        end
-                        tp(CFrame.new(chopped.WoodSection.Position) + Vector3.new(0, 4, 0))
-                        replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
-                        chopped.PrimaryPart = chopped.WoodSection
-                        chopped:SetPrimaryPartCFrame(sawmill.Particles.CFrame)
-                        replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
-                        wait(2)
-                    end
-                    
-                    repeat wait() until sawed
-                    
-                    local placed = false
-                    local structConn = workspace.PlayerModels.ChildAdded:Connect(function(child)
-                        local owner = child:WaitForChild("Owner")
-                        if owner.Value == lp and child:FindFirstChild("Type") and child.Type.Value == "Structure" then
-                            if not child:FindFirstChild("BuildDependentWood") then
-                                notify("小星", "填充失败", 3)
-                                return
-                            end
-                            structConn:Disconnect()
-                            local wood_type = child:FindFirstChild("BlueprintWoodClass") and child.BlueprintWoodClass.Value or nil
-                            remote:FireServer(child.ItemName.Value, target_cframe, lp, wood_type, child, true, nil)
-                            placed = true
-                        end
-                    end)
-                    
-                    iterations = 0
-                    while sawed and sawed.Parent ~= nil do
-                        if iterations > 50 then
-                            replicatedStorage.Interaction.DestroyStructure:FireServer(sawed)
-                            replicatedStorage.Interaction.DestroyStructure:FireServer(blueprint)
-                            notify("小星", "尝试太多次", 3)
-                            break
-                        end
-                        iterations = iterations + 1
-                        if sawed.Parent == nil then break end
-                        
-                        local conn, bpMade
-                        conn = workspace.PlayerModels.ChildAdded:Connect(function(child)
-                            if child:WaitForChild("Owner") and child.Owner.Value == lp and
-                                child:FindFirstChild("Type") and child.Type.Value == "Blueprint" then
-                                conn:Disconnect()
-                                blueprint = child
-                                bpMade = true
-                            end
-                        end)
-                        
-                        replicatedStorage.PlaceStructure.ClientPlacedBlueprint:FireServer(bp_type,
-                            sawed.WoodSection.CFrame, lp, blueprint, blueprint.Parent ~= nil)
-                        
-                        local waitIter = 0
-                        repeat
-                            if waitIter > 500 then
-                                notify("小星", "没有找到蓝图", 3)
-                                break
-                            end
-                            wait()
-                            waitIter = waitIter + 1
-                        until bpMade or placed
-                        
-                        if placed then
-                            pcall(conn.Disconnect, conn)
-                        end
-                    end
-                    
-                    repeat wait() until placed
-                    tp(oldpos)
-                    notify("小星", "填充完成", 3)
-                end
-                
                 lumbsmasher_legitpaint(bai.tchonmt, target.Parent)
             end
         end)
@@ -2158,185 +2572,7 @@ fillTab:Button({
         end
         for _, v in pairs(workspace.PlayerModels:GetChildren()) do
             if v:FindFirstChild("Type") and v.Type.Value == "Blueprint" and v:FindFirstChild("Owner") and v.Owner.Value == lp then
-                local oldpos = lp.Character.HumanoidRootPart.CFrame
-                local remote = replicatedStorage.PlaceStructure.ClientPlacedStructure
-                local bp_type = v.ItemName.Value
-                
-                local wood = 1
-                if lp.SuperBlueprint and lp.SuperBlueprint.Value then
-                    wood = 1
-                end
-                
-                local tool = barkgetBestAxe()
-                if not tool then
-                    notify("小星", "需要斧头", 3)
-                    return
-                end
-                
-                local required_wood = wood
-                local woodSection = nil
-                local minSize = 9e99
-                
-                for _, region in pairs(workspace:GetChildren()) do
-                    if region.Name == 'TreeRegion' then
-                        for _, tree in pairs(region:GetChildren()) do
-                            if tree:FindFirstChild('Leaves') and tree:FindFirstChild('WoodSection') and
-                                tree:FindFirstChild('TreeClass') and tree.TreeClass.Value == bai.tchonmt then
-                                for _, section in pairs(tree:GetChildren()) do
-                                    if section.Name == 'WoodSection' then
-                                        local size = section.Size.X * section.Size.Y * section.Size.Z
-                                        if size > required_wood and #section.ChildIDs:GetChildren() == 0 then
-                                            if minSize > section.Size.X then
-                                                minSize = section.Size.X
-                                                woodSection = section
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                if not woodSection then
-                    notify("小星", "没有找到树", 3)
-                    return
-                end
-                
-                local chopped = false
-                local treeConn = workspace.LogModels.ChildAdded:Connect(function(add)
-                    local owner = add:WaitForChild('Owner')
-                    if add.Owner.Value == lp and add.TreeClass.Value == bai.tchonmt and add:FindFirstChild("WoodSection") then
-                        chopped = add
-                        treeConn:Disconnect()
-                    end
-                end)
-                
-                local cutSize = required_wood / (woodSection.Size.X * woodSection.Size.X) + 0.01
-                local axeStats = getToolStats(tool)
-                
-                local function axeCut(evt, id, h)
-                    replicatedStorage.Interaction.RemoteProxy:FireServer(evt, {
-                        tool = tool,
-                        faceVector = Vector3.new(0, 0, -1),
-                        height = h,
-                        sectionId = id,
-                        hitPoints = axeStats.Damage,
-                        cooldown = 0.112,
-                        cuttingClass = "Axe"
-                    })
-                    wait()
-                end
-                
-                local iterations = 0
-                while not chopped do
-                    iterations = iterations + 1
-                    if iterations > 1000 then
-                        replicatedStorage.Interaction.ClientIsDragging:FireServer(woodSection.Parent)
-                        replicatedStorage.Interaction.DestroyStructure:FireServer(woodSection.Parent)
-                        chopped = true
-                    end
-                    tp(woodSection.CFrame + Vector3.new(4, 2, 2))
-                    axeCut(woodSection.Parent, woodSection.ID.Value, woodSection.Size.Y - cutSize)
-                end
-                
-                local target_cframe = v.MainCFrame and v.MainCFrame.Value or v.PrimaryPart.CFrame
-                local sawmill = getBestSawmill()
-                if not sawmill then
-                    notify("小星", "需要锯木机", 3)
-                    return
-                end
-                
-                local fill_target_cframe = sawmill.Particles.CFrame + Vector3.new(0, 1, 0)
-                
-                local sawed = false
-                local sawConn = workspace.PlayerModels.ChildAdded:Connect(function(add)
-                    local owner = add:WaitForChild('Owner')
-                    if add.Owner.Value == lp and add:FindFirstChild("WoodSection") then
-                        if not add:FindFirstChild('TreeClass') then
-                            repeat wait() until add:FindFirstChild('TreeClass')
-                        end
-                        if add.TreeClass.Value == bai.tchonmt then
-                            sawed = add
-                            sawConn:Disconnect()
-                        end
-                    end
-                end)
-                
-                iterations = 0
-                while chopped and chopped.Parent ~= nil do
-                    if sawed then break end
-                    iterations = iterations + 1
-                    if iterations > 300 then
-                        notify("小星", "处理树失败", 3)
-                        break
-                    end
-                    tp(CFrame.new(chopped.WoodSection.Position) + Vector3.new(0, 4, 0))
-                    replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
-                    chopped.PrimaryPart = chopped.WoodSection
-                    chopped:SetPrimaryPartCFrame(sawmill.Particles.CFrame)
-                    replicatedStorage.Interaction.ClientIsDragging:FireServer(chopped)
-                    wait(2)
-                end
-                
-                repeat wait() until sawed
-                
-                local placed = false
-                local structConn = workspace.PlayerModels.ChildAdded:Connect(function(child)
-                    local owner = child:WaitForChild("Owner")
-                    if owner.Value == lp and child:FindFirstChild("Type") and child.Type.Value == "Structure" then
-                        if not child:FindFirstChild("BuildDependentWood") then
-                            notify("小星", "填充失败", 3)
-                            return
-                        end
-                        structConn:Disconnect()
-                        local wood_type = child:FindFirstChild("BlueprintWoodClass") and child.BlueprintWoodClass.Value or nil
-                        remote:FireServer(child.ItemName.Value, target_cframe, lp, wood_type, child, true, nil)
-                        placed = true
-                    end
-                end)
-                
-                iterations = 0
-                while sawed and sawed.Parent ~= nil do
-                    if iterations > 50 then
-                        replicatedStorage.Interaction.DestroyStructure:FireServer(sawed)
-                        replicatedStorage.Interaction.DestroyStructure:FireServer(v)
-                        notify("小星", "尝试太多次", 3)
-                        break
-                    end
-                    iterations = iterations + 1
-                    if sawed.Parent == nil then break end
-                    
-                    local conn, bpMade
-                    conn = workspace.PlayerModels.ChildAdded:Connect(function(child)
-                        if child:WaitForChild("Owner") and child.Owner.Value == lp and
-                            child:FindFirstChild("Type") and child.Type.Value == "Blueprint" then
-                            conn:Disconnect()
-                            v = child
-                            bpMade = true
-                        end
-                    end)
-                    
-                    replicatedStorage.PlaceStructure.ClientPlacedBlueprint:FireServer(bp_type,
-                        sawed.WoodSection.CFrame, lp, v, v.Parent ~= nil)
-                    
-                    local waitIter = 0
-                    repeat
-                        if waitIter > 500 then
-                            notify("小星", "没有找到蓝图", 3)
-                            break
-                        end
-                        wait()
-                        waitIter = waitIter + 1
-                    until bpMade or placed
-                    
-                    if placed then
-                        pcall(conn.Disconnect, conn)
-                    end
-                end
-                
-                repeat wait() until placed
-                tp(oldpos)
+                lumbsmasher_legitpaint(bai.tchonmt, v)
                 wait()
             end
         end
@@ -2453,6 +2689,139 @@ transferTab:Button({
     end
 })
 
+transferTab:Toggle({
+    Title = "框选物品",
+    Default = false,
+    Callback = function(v)
+        if v then
+            local frame = Instance.new("Frame")
+            frame.Parent = game.CoreGui
+            frame.BackgroundColor3 = Color3.fromRGB(4, 0, 255)
+            frame.BackgroundTransparency = 0.8
+            frame.BorderColor3 = Color3.new(0.09, 0.137, 0.776)
+            frame.BorderSizePixel = 2
+            frame.Position = UDim2.new(0, 0, 0, 0)
+            frame.Size = UDim2.new(0, 0, 0, 0)
+            frame.Visible = false
+            frame.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            
+            function is_in_frame(screenpos, frm)
+                local xPos = frm.AbsolutePosition.X
+                local yPos = frm.AbsolutePosition.Y
+                local xSize = frm.AbsoluteSize.X
+                local ySize = frm.AbsoluteSize.Y
+                local check1 = screenpos.X >= xPos and screenpos.X <= xPos + xSize
+                local check3 = screenpos.Y >= yPos and screenpos.Y <= yPos + ySize
+                return check1 and check3
+            end
+            
+            bai.kuangxiu = game:GetService("UserInputService").InputBegan:Connect(function(click)
+                if click.UserInputType == Enum.UserInputType.MouseButton1 then
+                    frame.Visible = true
+                    frame.Position = UDim2.new(0, mouse.X, 0, mouse.Y)
+                    while game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
+                        wait()
+                        frame.Size = UDim2.new(0, mouse.X, 0, mouse.Y) - frame.Position
+                        for _, v in pairs(workspace.PlayerModels:GetChildren()) do
+                            if bai.xzemuban and v:FindFirstChild("Owner") and v.Owner.Value == game:GetService('Players'):FindFirstChild(bai.cswjia) and v:FindFirstChild("WoodSection") then
+                                local screenpos, visible = workspace.CurrentCamera:WorldToScreenPoint(v.WoodSection.CFrame.p)
+                                if visible and is_in_frame(screenpos, frame) then
+                                    if not v:FindFirstChild("SelectionBox") then
+                                        local sb = Instance.new("SelectionBox", v)
+                                        sb.Adornee = v
+                                    end
+                                end
+                            end
+                            if v:FindFirstChild("Owner") and v.Owner.Value == game:GetService('Players'):FindFirstChild(bai.cswjia) and v:FindFirstChild("Main") then
+                                local screenpos, visible = workspace.CurrentCamera:WorldToScreenPoint(v.Main.CFrame.p)
+                                if visible and is_in_frame(screenpos, frame) then
+                                    if not v:FindFirstChild("SelectionBox") then
+                                        local sb = Instance.new("SelectionBox", v)
+                                        sb.Adornee = v
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                frame.Size = UDim2.new(0, 1, 0, 1)
+                frame.Visible = false
+            end)
+        else
+            if bai.kuangxiu then
+                bai.kuangxiu:Disconnect()
+                bai.kuangxiu = nil
+            end
+            for _, v in pairs(game.CoreGui:GetChildren()) do
+                if v:IsA("Frame") then
+                    v:Destroy()
+                end
+            end
+        end
+    end
+})
+
+transferTab:Toggle({
+    Title = "带木板",
+    Default = false,
+    Callback = function(v)
+        bai.xzemuban = v
+    end
+})
+
+transferTab:Button({
+    Title = "传送选择的物品",
+    Callback = function()
+        if not bai.itemset then
+            notify("小星", "请先设置传送点", 3)
+            return
+        end
+        bai.cskais = true
+        local oldpos = lp.Character.HumanoidRootPart.CFrame
+        for _, v in pairs(workspace.PlayerModels:GetChildren()) do
+            if not bai.cskais then break end
+            if v:FindFirstChild("Owner") and v.Owner.Value == game:GetService('Players'):FindFirstChild(bai.cswjia) and v:FindFirstChild("SelectionBox") then
+                if v:FindFirstChild("Main") then
+                    if (lp.Character.HumanoidRootPart.CFrame.p - v.Main.CFrame.p).magnitude > 5 then
+                        tp(v.Main.CFrame + Vector3.new(4, 0, 4))
+                    end
+                    for i = 1, 30 do
+                        if not bai.cskais then break end
+                        replicatedStorage.Interaction.ClientIsDragging:FireServer(v)
+                        v:PivotTo(bai.itemset)
+                        replicatedStorage.Interaction.ClientIsDragging:FireServer(v)
+                        wait()
+                    end
+                    v.SelectionBox:Destroy()
+                elseif v:FindFirstChild("WoodSection") then
+                    tp(v.WoodSection.CFrame + Vector3.new(4, 0, 4))
+                    for i = 1, 70 do
+                        if not bai.cskais then break end
+                        replicatedStorage.Interaction.ClientIsDragging:FireServer(v)
+                        v.WoodSection.CFrame = bai.itemset * CFrame.Angles(math.rad(90), 0, 90)
+                        replicatedStorage.Interaction.ClientIsDragging:FireServer(v)
+                        wait()
+                    end
+                    v.SelectionBox:Destroy()
+                end
+            end
+        end
+        tp(oldpos)
+        notify("小星", "传送完成", 3)
+    end
+})
+
+transferTab:Button({
+    Title = "取消选择",
+    Callback = function()
+        for _, v in pairs(workspace.PlayerModels:GetChildren()) do
+            if v:FindFirstChild("SelectionBox") then
+                v.SelectionBox:Destroy()
+            end
+        end
+    end
+})
+
 local carTab = Window:Section({ Title = "汽车", Opened = false })
 
 carTab:Slider({
@@ -2495,32 +2864,50 @@ carTab:Toggle({
     end
 })
 
-carTab:Button({
-    Title = "汽车飞行(需先设置速度)",
-    Callback = function()
-        local speed = 100
-        spawn(function()
-            while wait() do
-                pcall(function()
-                    local hrp = lp.Character.HumanoidRootPart
-                    hrp.Anchored = false
-                    local bv = hrp:FindFirstChildOfClass("BodyVelocity")
-                    local bg = hrp:FindFirstChildOfClass("BodyGyro")
-                    if not bv then
-                        bv = Instance.new("BodyVelocity", hrp)
-                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    end
-                    if not bg then
-                        bg = Instance.new("BodyGyro", hrp)
-                        bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                        bg.D = 5000
-                        bg.P = 50000
-                    end
-                    bg.CFrame = workspace.CurrentCamera.CFrame
-                    bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * speed
-                end)
-            end
-        end)
+carTab:Textbox({
+    Title = "飞行速度",
+    Value = "100",
+    PlaceholderText = "输入速度",
+    Callback = function(v)
+        bai.carFlySpeed = tonumber(v) or 100
+    end
+})
+
+carTab:Toggle({
+    Title = "汽车飞行",
+    Default = false,
+    Callback = function(v)
+        if v then
+            spawn(function()
+                while v do
+                    pcall(function()
+                        local hrp = lp.Character.HumanoidRootPart
+                        hrp.Anchored = false
+                        local bv = hrp:FindFirstChildOfClass("BodyVelocity")
+                        local bg = hrp:FindFirstChildOfClass("BodyGyro")
+                        if not bv then
+                            bv = Instance.new("BodyVelocity", hrp)
+                            bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        end
+                        if not bg then
+                            bg = Instance.new("BodyGyro", hrp)
+                            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                            bg.D = 5000
+                            bg.P = 50000
+                        end
+                        bg.CFrame = workspace.CurrentCamera.CFrame
+                        bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * (bai.carFlySpeed or 100)
+                        wait()
+                    end)
+                end
+            end)
+        else
+            local hrp = lp.Character.HumanoidRootPart
+            local bv = hrp:FindFirstChildOfClass("BodyVelocity")
+            local bg = hrp:FindFirstChildOfClass("BodyGyro")
+            if bv then bv:Destroy() end
+            if bg then bg:Destroy() end
+        end
     end
 })
 
@@ -2587,29 +2974,34 @@ carTab:Button({
     end
 })
 
-local carTpTab = Window:Section({ Title = "汽车传送", Opened = false })
-
-carTpTab:Dropdown({
-    Title = "传送位置",
-    Values = tpLocations,
-    Value = "出生点",
-    Callback = function(v)
-        if v == '回家' then
-            for _, prop in pairs(workspace.Properties:GetChildren()) do
-                if prop.Owner.Value == lp then
-                    carTeleport(prop.OriginSquare.CFrame + Vector3.new(0, 10, 0))
-                end
-            end
-        elseif tpCoords[v] then
-            carTeleport(tpCoords[v])
-        end
-    end
-})
-
 local baseTab = Window:Section({ Title = "基地", Opened = false })
 
 baseTab:Button({
-    Title = "免费土地",
+    Title = "点击免费土地",
+    Callback = function()
+        notify("小星", "点击一块空地", 3)
+        local connection = mouse.Button1Up:Connect(function()
+            local clicked = mouse.Target
+            if clicked and clicked.Parent.Name == "Property" then
+                local prop = clicked.Parent
+                if prop:FindFirstChild("Owner") and prop.Owner.Value == nil then
+                    replicatedStorage.PropertyPurchasing.ClientPurchasedProperty:FireServer(prop,
+                        prop.OriginSquare.OriginCFrame.Value.p + Vector3.new(0, 3, 0))
+                    wait(0.5)
+                    tp(prop.OriginSquare.CFrame + Vector3.new(0, 10, 0))
+                    notify("小星", "土地已获取", 2)
+                else
+                    notify("小星", "这块地有主了", 3)
+                end
+            end
+        end)
+        wait(5)
+        connection:Disconnect()
+    end
+})
+
+baseTab:Button({
+    Title = "免费所有空地",
     Callback = function()
         for _, prop in pairs(workspace.Properties:GetChildren()) do
             if prop:FindFirstChild("Owner") and prop.Owner.Value == nil then
@@ -2623,6 +3015,7 @@ baseTab:Button({
                 end
             end
         end
+        notify("小星", "所有空地已获取", 3)
     end
 })
 
@@ -2933,57 +3326,6 @@ shortcutTab:Button({
 })
 
 shortcutTab:Button({
-    Title = "关/开家具店门",
-    Callback = function()
-        pcall(function()
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.FurnitureStore.LDoor.ButtonRemote_Toggle)
-            wait(0.5)
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.FurnitureStore.RDoor.ButtonRemote_Toggle)
-        end)
-    end
-})
-
-shortcutTab:Button({
-    Title = "关/开逻辑店门",
-    Callback = function()
-        pcall(function()
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.LogicStore.LDoor.ButtonRemote_Toggle)
-            wait(0.5)
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.LogicStore.RDoor.ButtonRemote_Toggle)
-        end)
-    end
-})
-
-shortcutTab:Button({
-    Title = "关/开车行门",
-    Callback = function()
-        pcall(function()
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.CarStore.LDoor.ButtonRemote_Toggle)
-            wait(0.5)
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Stores.CarStore.RDoor.ButtonRemote_Toggle)
-        end)
-    end
-})
-
-shortcutTab:Button({
-    Title = "打开鲨鱼斧门",
-    Callback = function()
-        pcall(function()
-            replicatedStorage.Interaction.RemoteProxy:FireServer(workspace.Region_Snow.Den.Hatch.ButtonRemote_Hinge)
-        end)
-    end
-})
-
-shortcutTab:Button({
-    Title = "删除鲨鱼斧门",
-    Callback = function()
-        pcall(function()
-            workspace.Region_Snow.Den.Hatch:Destroy()
-        end)
-    end
-})
-
-shortcutTab:Button({
     Title = "带来沼泽桥",
     Callback = function()
         local oldPos = lp.Character.HumanoidRootPart.CFrame
@@ -3007,3 +3349,27 @@ shortcutTab:Button({
         end
     end
 })
+
+shortcutTab:Button({
+    Title = "船离开时间",
+    Callback = function()
+        if workspace.Ferry.TimeToDeparture.Value == 0 then
+            notify("小星", "船已离开", 3)
+        else
+            notify("小星", "距离船离开还有 " .. workspace.Ferry.TimeToDeparture.Value .. " 秒", 3)
+        end
+    end
+})
+
+shortcutTab:Button({
+    Title = "桥上升时间",
+    Callback = function()
+        if workspace.Bridge.DownTime.Value < 0 then
+            notify("小星", "桥已上升", 3)
+        else
+            notify("小星", "距离桥上升还有 " .. workspace.Bridge.DownTime.Value .. " 秒", 3)
+        end
+    end
+})
+
+print("小星脚本已加载完成！")
