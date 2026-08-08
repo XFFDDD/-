@@ -1,17 +1,70 @@
---!nocheck
--- Functional reconstruction of Pastefy 3hjx6RH3 (GoofyScator V9).
--- Names are normalized to v<number>. See RECOVERY.md for fidelity notes.
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/main%20(1).lua"))()
 
-local v1 = game:GetService("Players")
-local v2 = game:GetService("ReplicatedStorage")
-local v3 = game:GetService("Workspace")
-local v4 = v1.LocalPlayer
-local v5 = "https://raw.githubusercontent.com/WasKKal/WasUI-For-Roblox/main/WasUI.lua"
-local v6 = loadstring(game:HttpGet(v5))()
-local v7 = v2:WaitForChild("Shared"):WaitForChild("Warp")
+local function setThemeColors()
+    local themes = WindUI.GetThemes()
+    if themes and themes.Dark then
+        themes.Dark.Text = Color3.fromHex("00FFFF")
+        themes.Dark.Placeholder = Color3.fromHex("00FFFF")
+        themes.Dark.Button = Color3.fromHex("00FFFF")
+        themes.Dark.TabTitle = Color3.fromHex("00FFFF")
+    end
+    WindUI:SetTheme("Dark")
+end
+setThemeColors()
+
+local Window = WindUI:CreateWindow({
+    Title = "TrashHub - 集装箱RNG",
+    Icon = "rbxassetid://18941716391",
+    IconThemed = true,
+    Author = "<font color='#00FFFF'>作者: TrashHub 移植版</font>",
+    Folder = "TrashHub_WindUI",
+    Size = UDim2.fromOffset(350, 300),
+    Transparent = true,
+    Theme = "Dark",
+    BackgroundImageTransparency = 0.4,
+    SideBarWidth = 200,
+    HideSearchBar = false,
+    ScrollBarEnabled = true,
+})
+
+task.wait(0.5)
+local mainFrame = Window.UIElements.Main
+if mainFrame then
+    for _, label in ipairs(mainFrame:GetDescendants()) do
+        if label:IsA("TextLabel") and label.Text == "TrashHub - 集装箱RNG" then
+            local gradient = Instance.new("UIGradient")
+            gradient.Name = "TitleRainbow"
+            gradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHex("FF0000")),
+                ColorSequenceKeypoint.new(0.16, Color3.fromHex("FFA500")),
+                ColorSequenceKeypoint.new(0.33, Color3.fromHex("FFFF00")),
+                ColorSequenceKeypoint.new(0.5, Color3.fromHex("00FF00")),
+                ColorSequenceKeypoint.new(0.66, Color3.fromHex("0000FF")),
+                ColorSequenceKeypoint.new(0.83, Color3.fromHex("4B0082")),
+                ColorSequenceKeypoint.new(1, Color3.fromHex("EE82EE"))
+            })
+            gradient.Rotation = 0
+            gradient.Parent = label
+            label.TextColor3 = Color3.fromHex("#FFFFFF")
+            game:GetService("RunService").Heartbeat:Connect(function()
+                if gradient and gradient.Parent then
+                    gradient.Rotation = (gradient.Rotation + 1.5) % 360
+                end
+            end)
+            break
+        end
+    end
+end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local RemoteEvent = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Warp")
     :WaitForChild("Index"):WaitForChild("Event"):WaitForChild("Reliable")
 
-local v8 = {
+local ContainerTypes = {
     "JunkContainer", "OverpoweredContainer", "MilitaryContainer",
     "ScratchedContainer", "SealedContainer", "MetalContainer",
     "SparkleContainer", "AlienContainer", "FrozenContainer",
@@ -28,150 +81,222 @@ local v8 = {
     "RareFlowerContainer",
 }
 
-local v9 = false
-local v10 = nil
-local v11 = v8[1]
+local isRunning = false
+local loopTask = nil
+local selectedContainer = ContainerTypes[1]
 
-local function v12(v13, v14, v15)
-    v6:Notify({Title = v13 or "TrashHub", Content = v14 or "", Duration = v15 or 3})
+local function Notify(title, content, duration)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title or "TrashHub",
+        Text = content or "",
+        Duration = duration or 3,
+    })
 end
 
--- The trace proves this remote path and FireServer use. GoofyScator's original
--- Warp serializer generated binary buffers at runtime; its exact event names
--- and all typed writes were not exposed. Keep the protocol boundary isolated.
-local function v13(v14, ...)
-    local v15 = table.pack(...)
+local function FireServer(remoteName, ...)
+    local args = table.pack(...)
     return pcall(function()
-        v7:FireServer(v14, table.unpack(v15, 1, v15.n))
+        RemoteEvent:FireServer(remoteName, table.unpack(args, 1, args.n))
     end)
 end
 
-local function v14()
-    local v15 = v3:FindFirstChild("Gameplay")
-    local v16 = v15 and v15:FindFirstChild("Plots")
-    if not v16 then return nil end
+local function GetNearestPlot()
+    local gameplay = Workspace:FindFirstChild("Gameplay")
+    local plots = gameplay and gameplay:FindFirstChild("Plots")
+    if not plots then return nil end
 
-    local v17 = v4.Character
-    local v18 = v17 and v17:FindFirstChild("HumanoidRootPart")
-    local v19, v20 = nil, math.huge
-    for _, v21 in ipairs(v16:GetChildren()) do
-        local v22 = v21:FindFirstChild("PlotLogic")
-        local v23 = v22 and v22:FindFirstChild("ContainerHolder")
-        if v23 then
-            local v24 = v21:FindFirstChildWhichIsA("BasePart", true)
-            local v25 = v18 and v24 and (v24.Position - v18.Position).Magnitude or 0
-            if v25 < v20 then v19, v20 = v21, v25 end
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    local nearestPlot, nearestDist = nil, math.huge
+
+    for _, plot in ipairs(plots:GetChildren()) do
+        local plotLogic = plot:FindFirstChild("PlotLogic")
+        local containerHolder = plotLogic and plotLogic:FindFirstChild("ContainerHolder")
+        if containerHolder then
+            local basePart = plot:FindFirstChildWhichIsA("BasePart", true)
+            local dist = rootPart and basePart and (basePart.Position - rootPart.Position).Magnitude or 0
+            if dist < nearestDist then
+                nearestPlot, nearestDist = plot, dist
+            end
         end
     end
-    return v19
+    return nearestPlot
 end
 
-local function v15()
-    local v16 = v14()
-    local v17 = v16 and v16:FindFirstChild("PlotLogic")
-    return v17 and v17:FindFirstChild("ContainerHolder")
+local function GetContainerHolder()
+    local plot = GetNearestPlot()
+    local logic = plot and plot:FindFirstChild("PlotLogic")
+    return logic and logic:FindFirstChild("ContainerHolder")
 end
 
-local function v16()
-    local v17 = v15()
-    local v18 = {}
-    if not v17 then return v18 end
-    for _, v19 in ipairs(v17:GetChildren()) do
-        if string.sub(v19.Name, 1, 10) == "CONTAINER_" then
-            v18[#v18 + 1] = v19
+local function GetContainers()
+    local holder = GetContainerHolder()
+    local containers = {}
+    if not holder then return containers end
+    for _, child in ipairs(holder:GetChildren()) do
+        if string.sub(child.Name, 1, 10) == "CONTAINER_" then
+            table.insert(containers, child)
         end
     end
-    return v18
+    return containers
 end
 
-local function v17(v18)
-    local v19 = 0
-    for _ = 1, tonumber(v18) or 1 do
-        if v13("PurchaseContainer", v11) then v19 += 1 end
+local function BuyContainers(count)
+    local success = 0
+    for _ = 1, tonumber(count) or 1 do
+        if FireServer("PurchaseContainer", selectedContainer) then
+            success = success + 1
+        end
         task.wait(0.1)
     end
-    v12("购买", string.format("已购买 %d 个 %s", v19, v11))
-    return v19
+    Notify("购买", string.format("已购买 %d 个 %s", success, selectedContainer))
+    return success
 end
 
-local function v18()
-    local v19 = 0
-    for _, v20 in ipairs(v16()) do
-        -- An auxiliary buffer.fromstring("K") was observed here.
-        if v13("OpenContainer", v20, buffer.fromstring("K")) then v19 += 1 end
+local function OpenAllContainers()
+    local opened = 0
+    for _, container in ipairs(GetContainers()) do
+        if FireServer("OpenContainer", container, buffer.fromstring("K")) then
+            opened = opened + 1
+        end
         task.wait(0.1)
     end
-    v12("开箱", string.format("已开启 %d 个箱子", v19))
-    return v19
+    Notify("开箱", string.format("已开启 %d 个箱子", opened))
+    return opened
 end
 
-local function v19()
-    local v20 = v14()
-    local v21 = v20 and v20:FindFirstChild("ItemCache", true)
-    local v22, v23 = 0, 0
-    if v21 then
-        for _, v24 in ipairs(v21:GetChildren()) do
-            if v13("PickupItem", v24) then v22 += 1 else v23 += 1 end
+local function PickupAllItems()
+    local plot = GetNearestPlot()
+    local itemCache = plot and plot:FindFirstChild("ItemCache", true)
+    local picked, skipped = 0, 0
+    if itemCache then
+        for _, item in ipairs(itemCache:GetChildren()) do
+            if FireServer("PickupItem", item) then
+                picked = picked + 1
+            else
+                skipped = skipped + 1
+            end
             task.wait(0.05)
         end
     end
-    v12("拾取完成", string.format("拾取 %d 件，跳过 %d 件", v22, v23))
-    return v22, v23
+    Notify("拾取完成", string.format("拾取 %d 件，跳过 %d 件", picked, skipped))
+    return picked, skipped
 end
 
-local function v20()
-    local v21 = v4.Character
-    local v22 = v21 and v21:FindFirstChild("HumanoidRootPart")
-    local v23 = v14()
-    local v24 = v23 and v23:FindFirstChild("PlotDecor")
-    local v25 = v24 and v24:FindFirstChild("House")
-    local v26 = v25 and v25:FindFirstChild("Part", true)
-    if v22 and v26 and v26:IsA("BasePart") then
-        v22.CFrame = v26.CFrame + Vector3.new(0, 1.5, 0)
+local function DropAllItems()
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    local plot = GetNearestPlot()
+    local decor = plot and plot:FindFirstChild("PlotDecor")
+    local house = decor and decor:FindFirstChild("House")
+    local housePart = house and house:FindFirstChild("Part", true)
+    if rootPart and housePart and housePart:IsA("BasePart") then
+        rootPart.CFrame = housePart.CFrame + Vector3.new(0, 1.5, 0)
     end
-    v13("DropAllItems")
-    v12("丢弃", "已传送并丢弃所有物品")
+    FireServer("DropAllItems")
+    Notify("丢弃", "已传送并丢弃所有物品")
 end
 
-local function v21()
-    if v9 or v10 then return end
-    v9 = true
-    v10 = task.spawn(function()
-        while v9 do
-            v17(8)
-            if not v9 then break end
-            v18()
-            if not v9 then break end
-            v19()
-            if not v9 then break end
-            v20()
+local function StartAutoLoop()
+    if isRunning or loopTask then return end
+    isRunning = true
+    loopTask = task.spawn(function()
+        while isRunning do
+            BuyContainers(8)
+            if not isRunning then break end
+            OpenAllContainers()
+            if not isRunning then break end
+            PickupAllItems()
+            if not isRunning then break end
+            DropAllItems()
             task.wait(0.1)
         end
-        v10 = nil
+        loopTask = nil
     end)
-    v12("TrashHub", "已开启")
+    Notify("TrashHub", "自动循环已开启")
 end
 
-local function v22()
-    v9 = false
-    if v10 then task.cancel(v10); v10 = nil end
-    v12("TrashHub", "已停止")
+local function StopAutoLoop()
+    isRunning = false
+    if loopTask then task.cancel(loopTask); loopTask = nil end
+    Notify("TrashHub", "自动循环已停止")
 end
 
-local v23 = v6:CreateWindow("TrashHub-集装箱RNG")
-v23:SetWelcome("欢迎使用TrashHub")
-local v24 = v23:AddTab("自动循环")
-local v25 = v23:AddTab("手动操作")
+local MainSection = Window:Section({
+    Title = "控制面板",
+    Opened = true
+})
 
-v6:CreateDropdown(v24, "容器类型", v8, v11, function(v26) v11 = v26 end, false, "container_auto")
-v6:CreateToggle(v24, false, function(v26) if v26 then v21() else v22() end end,
-    "开启自动循环", nil, "auto_toggle")
-v6:CreateDropdown(v25, "容器类型", v8, v11, function(v26) v11 = v26 end, false, "container_manual")
-v6:CreateButton(v25, "购买指定箱子", function() v17(8) end)
-v6:CreateButton(v25, "开启所有箱子", v18)
-v6:CreateButton(v25, "拾取所有物品", v19)
-v6:CreateButton(v25, "丢弃所有物品", v20)
-v12("TrashHub", "加载完成", 3)
+local autoTab = MainSection:Tab({
+    Title = "自动循环",
+    Icon = "rbxassetid://18941716391"
+})
 
-return {buy = v17, openAll = v18, pickupAll = v19, dropAll = v20,
-    start = v21, stop = v22, containers = v8}
+autoTab:Dropdown({
+    Title = "容器类型",
+    Values = ContainerTypes,
+    Value = selectedContainer,
+    Callback = function(value)
+        selectedContainer = value
+    end
+})
+
+autoTab:Toggle({
+    Title = "开启自动循环",
+    Default = false,
+    Callback = function(value)
+        if value then
+            StartAutoLoop()
+        else
+            StopAutoLoop()
+        end
+    end
+})
+
+local manualTab = MainSection:Tab({
+    Title = "手动操作",
+    Icon = "rbxassetid://18941716391"
+})
+
+manualTab:Dropdown({
+    Title = "容器类型",
+    Values = ContainerTypes,
+    Value = selectedContainer,
+    Callback = function(value)
+        selectedContainer = value
+    end
+})
+
+manualTab:Button({
+    Title = "购买 8 个指定箱子",
+    Callback = function()
+        BuyContainers(8)
+    end
+})
+
+manualTab:Button({
+    Title = "开启所有箱子",
+    Callback = OpenAllContainers
+})
+
+manualTab:Button({
+    Title = "拾取所有物品",
+    Callback = PickupAllItems
+})
+
+manualTab:Button({
+    Title = "丢弃所有物品",
+    Callback = DropAllItems
+})
+
+Notify("TrashHub", "WindUI 界面加载完成", 3)
+
+return {
+    buy = BuyContainers,
+    openAll = OpenAllContainers,
+    pickupAll = PickupAllItems,
+    dropAll = DropAllItems,
+    start = StartAutoLoop,
+    stop = StopAutoLoop,
+    containers = ContainerTypes,
+}
