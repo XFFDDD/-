@@ -17847,7 +17847,7 @@ run(function()
             ["驾驶帝国"] = 'getgenv().XiaoPi="皮脚本-驾驶帝国" loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/Roblox-Pi-Drivingempire-Script.lua"))()',
             ["尺寸传奇模拟器"] = 'getgenv().XiaoPi="皮脚本-尺寸传奇模拟器" loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/Roblox-Pi-Sizelegendsimulator-Script.lua"))()',
             ["河北唐县"] = 'getgenv().XiaoPi="皮脚本-河北唐县" loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/PIJIAOBEN-HEBEITANGXIAN.lua"))()',
-                    ["种植花园"] = 'getgenv().XiaoPi="星脚本-种植花园" loadstring(game:HttpGet("https://raw.githubusercontent.com/xiaopi77/xiaopi77/refs/heads/main/PIJIAOBEN-HEBEITANGXIAN.lua"))()'
+                    ["种植花园"] = 'getgenv().XiaoPi="星脚本-种植花园" loadstring(game:HttpGet("https://raw.githubusercontent.com/zilinskaslandon/XingJiaoBen-2026-/refs/heads/main/%E6%98%9F%E8%84%9A%E6%9C%AC-%E7%A7%8D%E6%A4%8D%E8%8A%B1%E5%9B%AD.lua"))()'
         },
         gameMapping = {
     [13822889] = "伐木大亨2",
