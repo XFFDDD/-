@@ -6077,109 +6077,6 @@ run(function()
         end
     end)
     
-    Select3:Button("把玩家传送过来", function()
-        local HumRoot = Players.LocalPlayer.Character.HumanoidRootPart
-        if LS.playernamedied == "所有人" then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= Players.LocalPlayer and player.Character and player.Character.HumanoidRootPart then
-                    if not Utils.isProtected(player) and not Utils.isVIP(player) then
-                        local targetPos = Utils.getTeleportPosition(HumRoot, LS.Direction, LS.Distance)
-                        player.Character.HumanoidRootPart.CFrame = targetPos
-                        wait(0.5)
-                    end
-                end
-            end
-            XPHUBNotification:Notification({
-                Title = "皮脚本",
-                Text = "已将所有玩家传送过来",
-                Icon = "rbxassetid://136169594232359",
-                Duration = 3
-            })
-        else
-            local tp_player = Utils.getPlayerByName(LS.playernamedied)
-            if tp_player and tp_player.Character and tp_player.Character.HumanoidRootPart then
-                if Utils.isProtected(tp_player) then
-                    XPHUBNotification:Notification({
-                        Title = "皮脚本",
-                        Text = "该玩家受到保护，无法传送",
-                        Icon = "rbxassetid://136169594232359",
-                        Duration = 3
-                    })
-                    return
-                end
-                if Utils.isVIP(tp_player) then
-                    XPHUBNotification:Notification({
-                        Title = "皮脚本",
-                        Text = "该玩家是VIP用户，无法传送",
-                        Icon = "rbxassetid://136169594232359",
-                        Duration = 3
-                    })
-                    return
-                end
-                local targetPos = Utils.getTeleportPosition(HumRoot, LS.Direction, LS.Distance)
-                tp_player.Character.HumanoidRootPart.CFrame = targetPos
-                XPHUBNotification:Notification({
-                    Title = "皮脚本",
-                    Text = "已将玩家传送过来",
-                    Icon = "rbxassetid://136169594232359",
-                    Duration = 3
-                })
-            else
-                XPHUBNotification:Notification({
-                    Title = "皮脚本",
-                    Text = "无法传送 原因: 玩家已消失",
-                    Icon = "rbxassetid://136169594232359",
-                    Duration = 3
-                })
-            end
-        end
-    end)
-    
-    Select3:Toggle("循环传送玩家过来", "Loop", false, function(state)
-        if state then
-            LS.LoopTeleport = true
-            XPHUBNotification:Notification({
-                Title = "皮脚本",
-                Text = "已开启循环传送玩家过来",
-                Icon = "rbxassetid://136169594232359",
-                Duration = 3
-            })
-            spawn(function()
-                while LS.LoopTeleport do
-                    local HumRoot = Players.LocalPlayer.Character.HumanoidRootPart
-                    if LS.playernamedied == "所有人" then
-                        for _, player in pairs(Players:GetPlayers()) do
-                            if player ~= Players.LocalPlayer and player.Character and player.Character.HumanoidRootPart then
-                                if not Utils.isProtected(player) and not Utils.isVIP(player) then
-                                    local targetPos = Utils.getTeleportPosition(HumRoot, LS.Direction, LS.Distance)
-                                    player.Character.HumanoidRootPart.CFrame = targetPos
-                                    wait(0.5)
-                                end
-                            end
-                        end
-                    else
-                        local tp_player = Utils.getPlayerByName(LS.playernamedied)
-                        if tp_player and tp_player.Character and tp_player.Character.HumanoidRootPart then
-                            if not Utils.isProtected(tp_player) and not Utils.isVIP(tp_player) then
-                                local targetPos = Utils.getTeleportPosition(HumRoot, LS.Direction, LS.Distance)
-                                tp_player.Character.HumanoidRootPart.CFrame = targetPos
-                            end
-                        end
-                    end
-                    wait()
-                end
-            end)
-        else
-            LS.LoopTeleport = false
-            XPHUBNotification:Notification({
-                Title = "皮脚本",
-                Text = "已关闭循环传送玩家过来",
-                Icon = "rbxassetid://136169594232359",
-                Duration = 3
-            })
-        end
-    end)
-    
     local Select4 = PIJIAOBEN:section("其他", false)
     
     Select4:Toggle("开启指定自瞄目标", "Aimbot", false, function(Aimbot)
@@ -6239,24 +6136,6 @@ run(function()
                 LS.aimbotLoop:Disconnect()
                 LS.aimbotLoop = nil
             end
-        end
-    end)
-    
-    Select4:Toggle("吸全部玩家", "Get All", false, function(state)
-        if state then
-            spawn(function()
-                while state do
-                    for i, v in next, Players:GetPlayers() do
-                        if v.Name ~= Players.LocalPlayer.Name then
-                            if not Utils.isProtected(v) and not Utils.isVIP(v) then
-                                local targetPos = Utils.getTeleportPosition(Players.LocalPlayer.Character.HumanoidRootPart, LS.Direction, LS.Distance)
-                                v.Character.HumanoidRootPart.CFrame = targetPos
-                                wait()
-                            end
-                        end
-                    end
-                end
-            end)
         end
     end)
     
