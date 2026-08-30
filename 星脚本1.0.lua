@@ -174,6 +174,60 @@ UI.__sections = {}   -- 记录所有 section 句柄，供 SetValue/UpdateLabel �
 --]]
 local _mainTab = nil      -- 唯一左侧导航栏(tab 对象, 带 :CreateFrame)
 
+--[[==========================================================
+  折叠分组系统 (Fold/Collapse Sections)
+  每个 section 拥有独立的 Header(可点击折叠) + Content 容器,
+  点击 Header 即可展开/收起该分组。业务代码零改动。
+==========================================================]]
+local _sectionCounter = 0
+
+local function makeSectionHeader(page, content, title, defaultOpen)
+    local Header = Instance.new("TextButton")
+    Header.Name = "SectionHeader"
+    Header.BackgroundColor3 = Color3.fromRGB(55, 55, 68)
+    Header.BorderSizePixel = 0
+    Header.Size = UDim2.new(1, 0, 0, 28)
+    Header.Font = Enum.Font.GothamBold
+    Header.TextSize = 12
+    Header.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Header.TextXAlignment = Enum.TextXAlignment.Left
+    Header.AutoButtonColor = false
+    Header.Parent = page
+    Header.Text = "   " .. (defaultOpen and "▼" or "▶") .. "  " .. title
+    local open = defaultOpen
+    Header.MouseButton1Click:Connect(function()
+        open = not open
+        pcall(function() content.Visible = open end)
+        Header.Text = "   " .. (open and "▼" or "▶") .. "  " .. title
+    end)
+    return Header
+end
+
+local function makeSectionContent(page)
+    local Content = Instance.new("Frame")
+    Content.Name = "SectionContent"
+    Content.BackgroundTransparency = 1
+    Content.BorderSizePixel = 0
+    Content.Size = UDim2.new(1, 0, 0, 0)
+    Content.AutomaticSize = Enum.AutomaticSize.Y
+    Content.Parent = page
+    local layout = Instance.new("UIListLayout")
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 4)
+    layout.Parent = Content
+    return Content
+end
+
+local function reparentToContent(el, content)
+    if not el then return end
+    pcall(function()
+        if content and el.Parent and el.Parent.Name == "SectionContainer" then
+            el.Parent = content
+        end
+    end)
+end
+
 function UI:CreateTab(window, name, icon)
     -- 全脚本只创建一次左侧导航栏; 后续所有 "Tab" 都复用它, 通过 CreateFrame 注册按钮。
     if not _mainTab then
@@ -183,14 +237,38 @@ function UI:CreateTab(window, name, icon)
     -- 每个功能页在【同一】导航栏里注册一个 PageButton + 一个内容 ScrollingFrame。
     local page = Tab:CreateFrame(name)
     page.Visible = false  -- 默认隐藏, 由库的 Tab 切换逻辑负责显示当前页
-    local tabObj = { Window = window, Tab = Tab, _page = page, _els = {} }
+    -- 折叠分组: 清空库默认空 Section/SectionContainer, 改由 section() 接管
+    pcall(function()
+        for _, child in ipairs(page:GetChildren()) do
+            if child.Name == "Section" then child:Destroy() end
+            if child.Name == "SearchBar" then child:Destroy() end
+        end
+    end)
+    local pageLayout = page:FindFirstChildOfClass("UIListLayout")
+    if not pageLayout then
+        pageLayout = Instance.new("UIListLayout")
+        pageLayout.Parent = page
+    end
+    pageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    pageLayout.Padding = UDim.new(0, 4)
+    local tabObj = { Window = window, Tab = Tab, _page = page, _content = nil, _els = {} }
     setmetatable(tabObj, { __index = UI })
     return tabObj
 end
 
--- section: 不再创建新 Frame，而是复用所属页的内容 Frame。
+-- section: 每个分组在 page 下创建独立的 Header(可点击折叠) + Content 容器。
 function UI:section(name, defaultOpen)
-    local handle = { _page = self._page, _tab = self, _els = {} }
+    defaultOpen = (defaultOpen ~= false)
+    _sectionCounter = _sectionCounter + 1
+    local page = self._page
+    local content = makeSectionContent(page)
+    makeSectionHeader(page, content, name, defaultOpen)
+    if not defaultOpen then
+        pcall(function() content.Visible = false end)
+    end
+    self._content = content
+    local handle = { _page = page, _content = content, _tab = self, _els = {} }
     UI.__sections[name] = handle
     setmetatable(handle, { __index = UI })
     return handle
@@ -203,6 +281,7 @@ end
 -- Label
 function UI:Label(text)
     local el = self._page:CreateLabel(text)
+    reparentToContent(el, self._content)
     self._els[text] = el
     return el
 end
@@ -212,7 +291,9 @@ function UI:Button(name, a, b)
     local desc, cb
     if type(a) == "function" then cb = a else desc = a; cb = b end
     cb = cb or function() end
-    return self._page:CreateButton(name, desc or "", cb)
+    local el = self._page:CreateButton(name, desc or "", cb)
+    reparentToContent(el, self._content)
+    return el
 end
 
 -- Toggle (旧: Toggle(name, flag, default, callback))
@@ -224,6 +305,7 @@ function UI:Toggle(name, flag, default, cb)
     end
     cb = cb or function() end
     local tgl = self._page:CreateToggle(name, "", function(v) cb(v) end)
+    reparentToContent(tgl, self._content)
     return tgl
 end
 
@@ -231,19 +313,24 @@ end
 function UI:Slider(name, flag, def, min, max, prec, cb)
     cb = cb or function() end
     local sld = self._page:CreateSlider(name, min or 0, max or 100, function(v) cb(v) end)
+    reparentToContent(sld, self._content)
     return sld
 end
 
 -- Textbox (旧: Textbox(name, flag, placeholder, callback))
 function UI:Textbox(name, flag, placeholder, cb)
     cb = cb or function() end
-    return self._page:CreateBox(placeholder or name, "Submit", function(v) cb(v) end)
+    local el = self._page:CreateBox(placeholder or name, "Submit", function(v) cb(v) end)
+    reparentToContent(el, self._content)
+    return el
 end
 
 -- Bind / Keybind (新版原生 CreateBind)
 function UI:Bind(name, defaultKey, cb)
     cb = cb or function() end
-    return self._page:CreateBind(name, tostring(defaultKey or "Unknown"), function(v) cb(v) end)
+    local el = self._page:CreateBind(name, tostring(defaultKey or "Unknown"), function(v) cb(v) end)
+    reparentToContent(el, self._content)
+    return el
 end
 UI.Keybind = UI.Bind
 
@@ -251,19 +338,20 @@ UI.Keybind = UI.Bind
 -- 新版无原生下拉 -> 用一组 Button + 当前值 Label 模拟
 function UI:Dropdown(name, flag, options, cb)
     cb = cb or function() end
-    self._page:CreateLabel("▼ " .. name)
+    local ddLabel = self._page:CreateLabel("▼ " .. name); reparentToContent(ddLabel, self._content)
     local opts = (type(options) == "table") and options or {}
     local current = opts[1]
-    local valLabel = self._page:CreateLabel("当前: " .. tostring(current or "未选择"))
+    local valLabel = self._page:CreateLabel("当前: " .. tostring(current or "未选择")); reparentToContent(valLabel, self._content)
     local function upd()
         pcall(function() valLabel:UpdateLabel("当前: " .. tostring(current)) end)
     end
     for _, opt in ipairs(opts) do
-        self._page:CreateButton(tostring(opt), "", function()
+        local optBtn = self._page:CreateButton(tostring(opt), "", function()
             current = opt
             upd()
             cb(opt)
         end)
+        reparentToContent(optBtn, self._content)
     end
     local handle = {
         Get = function() return current end,
@@ -277,7 +365,9 @@ end
 -- ColorPicker (新版有 CreateColorPicker(name, callback), 直接用)
 function UI:ColorPicker(name, flag, default, cb)
     cb = cb or function() end
-    return self._page:CreateColorPicker(name, function(col) cb(col) end)
+    local el = self._page:CreateColorPicker(name, function(col) cb(col) end)
+    reparentToContent(el, self._content)
+    return el
 end
 
 UI.run = function(func) func() end
@@ -704,70 +794,22 @@ run(function()
             humanoid.WalkSpeed = speed
         end
     end
-    
-    local function cframeMove(speed)
-        local humanoid = getHumanoid()
-        local rootPart = getRootPart()
-        
-        if not humanoid or not rootPart then return end
-        
-        local moveDirection = humanoid.MoveDirection
-        if moveDirection.Magnitude > 0 then
-            rootPart.CFrame = rootPart.CFrame + (moveDirection * speed * 0.1)
-        end
-    end
-    
-    local function velocityMove(speed)
-        local humanoid = getHumanoid()
-        local rootPart = getRootPart()
-        
-        if not humanoid or not rootPart then return end
-        
-        local moveDirection = humanoid.MoveDirection
-        if moveDirection.Magnitude > 0 then
-            rootPart.Velocity = Vector3.new(
-                moveDirection.X * speed,
-                rootPart.Velocity.Y,
-                moveDirection.Z * speed
-            )
-        end
-    end
-    
-    local function translateMove(speed)
-        local humanoid = getHumanoid()
-        local rootPart = getRootPart()
-        
-        if not humanoid or not rootPart then return end
-        
-        local moveDirection = humanoid.MoveDirection
-        if moveDirection.Magnitude > 0 then
-            rootPart.CFrame = rootPart.CFrame + (moveDirection * speed * 0.1)
-        end
-    end
-    
+
     local function startMoveLoop()
         if _G.MoveSpeed.Connection then
             _G.MoveSpeed.Connection:Disconnect()
         end
-        
+
         _G.MoveSpeed.Connection = RunService.Heartbeat:Connect(function()
             if not _G.MoveSpeed.Enabled then return end
-            
+
             local humanoid = getHumanoid()
             local rootPart = getRootPart()
-            
+
             if not humanoid or not rootPart then return end
             if humanoid.Health <= 0 then return end
-            
-            if _G.MoveSpeed.Mode == "WalkSpeed" then
-                walkSpeedMode(_G.MoveSpeed.Speed)
-            elseif _G.MoveSpeed.Mode == "CFrame" then
-                cframeMove(_G.MoveSpeed.Speed)
-            elseif _G.MoveSpeed.Mode == "Velocity" then
-                velocityMove(_G.MoveSpeed.Speed)
-            elseif _G.MoveSpeed.Mode == "Translate" then
-                translateMove(_G.MoveSpeed.Speed)
-            end
+
+            walkSpeedMode(_G.MoveSpeed.Speed)
         end)
     end
     
@@ -797,32 +839,21 @@ run(function()
     }
 end)
 
-run(function()    
-    about:Dropdown("移动模式", "Move Mode", {
-        "WalkSpeed",
-        "CFrame",
-        "Velocity",
-        "Translate"
-    }, function(Value)
-        _G.MoveSpeed.Mode = Value
-        
-        if _G.MoveSpeed.Enabled then
-            _G.MoveSpeedFunctions.stop()
-            _G.MoveSpeedFunctions.start()
-        end
-    end)
-    
+run(function()
+    --[[通用模式: 固定 WalkSpeed, 移除旧版多模式 Dropdown]]
+    _G.MoveSpeed.Mode = "WalkSpeed"
+
     about:Slider("设置速度", "Move Speed Slider", 16, 1, 600, false, function(Value)
         _G.MoveSpeed.Speed = Value
     end)
-    
+
     about:Textbox("设置速度", "Move Speed Input", "输入速度", function(Value)
         local speed = tonumber(Value)
         if speed then
             _G.MoveSpeed.Speed = speed
         end
     end)
-    
+
     about:Toggle("开启/关闭移动速度", "MoveSpeed Enabled", false, function(Value)
         _G.MoveSpeed.Enabled = Value
         if Value then
@@ -1008,7 +1039,10 @@ run(function()
     }
 end)
 
-run(function() 
+run(function()
+    --[[通用模式: 固定 Humanoid, 移除旧版多模式 Dropdown]]
+    _G.Jump.Mode = "Humanoid"
+
     about:Toggle("开启/关闭跳跃", "Jump Enabled", false, function(Value)
         _G.Jump.Enabled = Value
         if Value then
@@ -1017,32 +1051,18 @@ run(function()
             _G.JumpFunctions.stop()
         end
     end)
-    
-    about:Dropdown("跳跃模式", "Jump Mode", {
-        "Humanoid",
-        "CFrame",
-        "Velocity",
-        "Infinite"
-    }, function(Value)
-        _G.Jump.Mode = Value
-        
-        if _G.Jump.Enabled then
-            _G.JumpFunctions.stop()
-            _G.JumpFunctions.start()
-        end
-    end)
-    
+
     about:Slider("设置跳跃高度", "Jump Power", 50, 50, 400, false, function(Value)
         _G.Jump.JumpPower = Value
     end)
-    
+
     about:Textbox("设置跳跃倍数", "Jump Multiplier", "输入倍数", function(Value)
         local multiplier = tonumber(Value)
         if multiplier and multiplier > 0 then
             _G.Jump.Multiplier = multiplier
         end
     end)
-    
+
     about:Toggle("无限跳跃", "Inf Jump", false, function(Value)
         _G.Jump.InfJ = Value
     end)
@@ -5127,14 +5147,16 @@ end)
 
 local function UpdateHitboxes()
     for player, character in pairs(playerCharacters) do
-        if player == Players.LocalPlayer then continue end
+        if player == Players.LocalPlayer then goto _cn17 end
         
         if getgenv().HitboxConfig.TeamCheck and player.Team == Players.LocalPlayer.Team then
-            continue
+            goto _cn16
+        ::_cn16::
         end
 
         if getgenv().HitboxConfig.CheckCorpses and isCorpse(character) then
-            continue
+            goto _cn15
+        ::_cn15::
         end
 
         pcall(function()
@@ -5197,13 +5219,15 @@ local function UpdateHitboxes()
                 end
             end
         end)
+    ::_cn17::
     end
     
     if getgenv().HitboxConfig.AffectNPC and getgenv().HitboxConfig.Active then
         for character, _ in pairs(npcCharacters) do
             if character and character.Parent then
                 if getgenv().HitboxConfig.CheckCorpses and isCorpse(character) then
-                    continue
+                    goto _cn14
+                ::_cn14::
                 end
                 
                 pcall(function()
@@ -9347,7 +9371,8 @@ run(function()
         for character, esp in pairs(ESPCache) do
             if not character or not character.Parent then
                 CleanupESP(character)
-                continue
+                goto _cn13
+            ::_cn13::
             end
             
             if not _G.ESPUtils.shouldShowESP(esp.Player, character) then
@@ -9357,14 +9382,15 @@ run(function()
                 if esp.Billboard then 
                     esp.Billboard.Enabled = false 
                 end
-                continue
+                goto _cn12
+            ::_cn12::
             end
             
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then continue end
+            if not humanoidRootPart then goto _cn11 end
             
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if not humanoid then continue end
+            if not humanoid then goto _cn10 end
             
             if esp.Billboard and not esp.Billboard.Adornee then
                 esp.Billboard.Adornee = humanoidRootPart
@@ -9380,7 +9406,8 @@ run(function()
                 if esp.Billboard then 
                     esp.Billboard.Enabled = false 
                 end
-                continue
+                goto _cn9
+            ::_cn9::
             end
             
             local color = _G.ColorCalculator.CalculatePlayerColor(esp, humanoid, character, distance)
@@ -9479,6 +9506,8 @@ run(function()
             if _G.ESPConfig.ShowTracer then
                 _G.TracerModule.UpdateTracer(esp.Player)
             end
+        ::_cn10::
+        ::_cn11::
         end
     end
     
@@ -9966,8 +9995,8 @@ run(function()
     
     local function scanAndAddUsers()
         for _, player in pairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            if not player.Character then continue end
+            if player == LocalPlayer then goto _cn8 end
+            if not player.Character then goto _cn7 end
             
             if isPlayingSecretAnimation(player.Character) then
                 if not table.find(genv.PiScriptUsers, player.UserId) then
@@ -9977,6 +10006,8 @@ run(function()
                     end
                 end
             end
+        ::_cn7::
+        ::_cn8::
         end
     end
     
@@ -10794,7 +10825,8 @@ run(function()
                     local checkPos = aimPos or targetPart.Position
                     
                     if not isInFOVLimit(checkPos) then
-                        continue
+                        goto _cn6
+                    ::_cn6::
                     end
                     
                     local screenPos, onScreen = Cam:WorldToViewportPoint(checkPos)
@@ -10807,11 +10839,13 @@ run(function()
                         end
                         
                         if AimBot.priority == "fov" and fovDistance > AimBot.distance then
-                            continue
+                            goto _cn5
+                        ::_cn5::
                         end
                         
                         if AimBot.wallCheck and isWallBetween(targetPart) then
-                            continue
+                            goto _cn4
+                        ::_cn4::
                         end
                         
                         local compareValue
@@ -11782,15 +11816,15 @@ run(function()
         local camPos = Cam.CFrame.Position
         
         for _, npc in ipairs(getNPCs()) do
-            if not isAlive(npc) then continue end
+            if not isAlive(npc) then goto _cn3 end
             
             local part = getAimPart(npc)
-            if not part then continue end
+            if not part then goto _cn2 end
             
             local pos = part.Position
             local dist = (camPos - pos).Magnitude
             
-            if dist > Settings.distance then continue end
+            if dist > Settings.distance then goto _cn1 end
             
             if Settings.wallCheck then
                 local raycastParams = RaycastParams.new()
@@ -11799,7 +11833,8 @@ run(function()
                 local rayDirection = (pos - camPos).Unit * dist
                 local raycastResult = workspace:Raycast(camPos, rayDirection, raycastParams)
                 if raycastResult and not raycastResult.Instance:IsDescendantOf(npc) then
-                    continue
+                    goto _cn0
+                ::_cn0::
                 end
             end
             
@@ -11807,6 +11842,9 @@ run(function()
                 closestDistance = dist
                 closestTarget = npc
             end
+        ::_cn1::
+        ::_cn2::
+        ::_cn3::
         end
         return closestTarget
     end
@@ -18063,6 +18101,54 @@ XPHUBNotification:Notification({
     Icon = "rbxassetid://136169594232359",
     Duration = 3
 })
+
+--[[
+  左侧导航栏滚动支持: 16 个 Tab 按钮超出屏幕时需要可滚动。
+  找到 Tabs 容器后, 将其改为 ScrollingFrame 行为(若本身已是则增强),
+  设置 AutomaticCanvasSize 让内容超出时自动撑开画布, 启用滚动条。
+--]]
+do
+    local tabs
+    for _, v in ipairs(Window:GetChildren()) do
+        if v:IsA("Frame") and v.Name == "Tabs" then tabs = v; break end
+    end
+    if tabs then
+        -- 确保有 UIListLayout 让按钮自动排列
+        local listLayout = tabs:FindFirstChildOfClass("UIListLayout")
+        if not listLayout then
+            listLayout = Instance.new("UIListLayout")
+            listLayout.Parent = tabs
+        end
+        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        listLayout.Padding = UDim.new(0, 4)
+
+        -- 设置自动画布大小(基于子元素总高)
+        pcall(function() tabs.AutomaticCanvasSize = Enum.AutomaticCanvasSize.Y end)
+
+        -- 设置画布范围(足够大以容纳所有按钮)
+        pcall(function()
+            local btnCount = 0
+            for _, b in ipairs(tabs:GetChildren()) do
+                if b:IsA("TextButton") then btnCount = btnCount + 1 end
+            end
+            local btnHeight = 32  -- 每个按钮约 28px + 4px 间距
+            local totalHeight = btnCount * btnHeight + 20
+            local viewportHeight = tabs.AbsoluteSize.Y
+            if totalHeight > viewportHeight then
+                tabs.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+            end
+        end)
+
+        -- 启用滚动
+        pcall(function() tabs.ScrollingEnabled = true end)
+        pcall(function() tabs.ScrollBarThickness = 6 end)
+        pcall(function() tabs.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100) end)
+        pcall(function() tabs.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right end)
+
+        -- 裁剪超出部分(防止按钮溢出到内容区)
+        pcall(function() tabs.ClipsDescendants = true end)
+    end
+end
 
 --[[
   默认选中首页(信息): 现在所有功能页都在【同一个】左侧导航栏(Tabs)里各注册了一个 PageButton,
