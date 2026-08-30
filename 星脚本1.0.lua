@@ -2802,21 +2802,6 @@ run(function()
     end)
 end)
 
-local about = PIJIAOBEN:section("其他注入器", false)
-
-about:Button("syn", function()
-  loadstring(game:HttpGet("https://pastebin.com/raw/tWGxhNq0"))()
-end)
-about:Button("syn2", function()
-  loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/Chillz-s-scripts/main/Synapse-X-Remake.lua"))()
-end)
-about:Button("阿尔宙斯V3", function()
-  loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/chillz-workshop/main/Arceus%20X%20V3"))()
-end)     
-about:Button("水滴注入器", function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/crceck123/roblox-script/main/hydrogen_skin_for_evon.lua"))()
-end)
-
 local about = PIJIAOBEN:section("加入其他服务器/游戏", false)
 local run = function(func) func() end
 
