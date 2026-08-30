@@ -18103,4 +18103,5 @@ do
         end
     end
 end
-end) --[[迁移修复: 闭合最外层 run(function() ... ]]
+
+end -- 闭合「默认选中首页」do 块
