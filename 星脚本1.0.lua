@@ -159,21 +159,36 @@ end
 local UI = {}
 UI.__sections = {}   -- 记录所有 section 句柄，供 SetValue/UpdateLabel 动态查找
 
+--[[
+  新版 black ui 库的真实模型（见 black ui.txt）:
+    window:CreateTab(name)       -> 创建【左侧整个导航栏】(一个 Tabs Frame, 宽140), 全脚本只应调一次;
+    tab:CreateFrame(pageName)    -> ①在 Window 建一个内容 ScrollingFrame,
+                                   ②在【该 tab 的 Tabs 导航栏】里注册一个 PageButton 按钮。
+  Tab 切换由库的 PageButton 点击逻辑完成: 遍历 Window 子级隐藏其它 ScrollingFrame, 显示自己。
+
+  因此正确用法是: 只 CreateTab 一次拿到【唯一】左侧导航栏, 然后每个功能页都调一次
+  Tab:CreateFrame(name), 在同一导航栏里各注册一个按钮。内容页与按钮一一对应。
+
+  之前的错误: 16 个页各自 CreateTab + CreateFrame -> 生成 16 个互相重叠的左侧导航栏,
+  每个栏只有 1 个按钮, 视觉上互相遮盖只剩顶层 -> "左边没名字, 但按下去有功能"。
+--]]
+local _mainTab = nil      -- 唯一左侧导航栏(tab 对象, 带 :CreateFrame)
+
 function UI:CreateTab(window, name, icon)
-    local Tab = window:CreateTab(name)
-    -- [修复] 一个 Tab 只创建一个 Frame 作为其内容容器。
-    -- 原库 CreateFrame 会生成平级 ScrollingFrame，Tab 切换靠 Window:GetChildren() 遍历实现；
-    -- 若每个 section 都建 Frame，会导致所有 Tab 的 Page 平铺在 Window 下、切换时互相覆盖，
-    -- 最终只剩最后创建的 Tab 内容可见。故这里每个 Tab 只建一个 Frame，所有 section 复用它。
+    -- 全脚本只创建一次左侧导航栏; 后续所有 "Tab" 都复用它, 通过 CreateFrame 注册按钮。
+    if not _mainTab then
+        _mainTab = window:CreateTab(name)
+    end
+    local Tab = _mainTab
+    -- 每个功能页在【同一】导航栏里注册一个 PageButton + 一个内容 ScrollingFrame。
     local page = Tab:CreateFrame(name)
-    page.Visible = false  -- 默认隐藏，由库的 Tab 切换逻辑负责显示当前 Tab
+    page.Visible = false  -- 默认隐藏, 由库的 Tab 切换逻辑负责显示当前页
     local tabObj = { Window = window, Tab = Tab, _page = page, _els = {} }
     setmetatable(tabObj, { __index = UI })
     return tabObj
 end
 
--- section: 不再创建新 Frame，而是复用所属 Tab 的唯一内容 Frame。
--- 返回带 _page 的句柄，使 :Button/:Toggle 等仍挂在正确的 Tab 容器上。
+-- section: 不再创建新 Frame，而是复用所属页的内容 Frame。
 function UI:section(name, defaultOpen)
     local handle = { _page = self._page, _tab = self, _els = {} }
     UI.__sections[name] = handle
@@ -18048,4 +18063,44 @@ XPHUBNotification:Notification({
     Icon = "rbxassetid://136169594232359",
     Duration = 3
 })
+
+--[[
+  默认选中首页(信息): 现在所有功能页都在【同一个】左侧导航栏(Tabs)里各注册了一个 PageButton,
+  点击 PageButton 会触发库的切换逻辑(隐藏其它 Page, 显示自己)。这里在加载完成后,
+  找到导航栏里的第一个 PageButton 并模拟点击, 让"信息"页默认可见。
+  若 Fire 不可用则降级: 直接显示第一个 Page ScrollingFrame。
+--]]
+do
+    local tabs
+    for _, v in ipairs(Window:GetChildren()) do
+        if v:IsA("Frame") and v.Name == "Tabs" then tabs = v; break end
+    end
+    local firstBtn
+    if tabs then
+        for _, b in ipairs(tabs:GetChildren()) do
+            if b:IsA("TextButton") and b.Name == "PageButton" then firstBtn = b; break end
+        end
+    end
+    if firstBtn then
+        local ok = pcall(function() firstBtn.MouseButton1Down:Fire() end)
+        if not ok then
+            -- 降级: 直接显示第一个 Page(库的切换本质是遍历 Window 下的 ScrollingFrame)
+            for _, p in ipairs(Window:GetChildren()) do
+                if p:IsA("ScrollingFrame") then p.Visible = false end
+            end
+            -- 第一个 PageButton 对应的 Page 即首个创建的 Page
+            local idx = 0
+            for _, b in ipairs(tabs:GetChildren()) do
+                if b:IsA("TextButton") and b.Name == "PageButton" then idx = idx + 1; if idx == 1 then break end
+            end
+            idx = 0
+            for _, p in ipairs(Window:GetChildren()) do
+                if p:IsA("ScrollingFrame") then
+                    idx = idx + 1
+                    if idx == 1 then p.Visible = true; break end
+                end
+            end
+        end
+    end
+end
 end) --[[迁移修复: 闭合最外层 run(function() ... ]]
