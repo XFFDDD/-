@@ -17846,18 +17846,16 @@ run(function()
                     ["种植花园"] = 'getgenv().XiaoPi="星脚本-种植花园" loadstring(game:HttpGet("https://raw.githubusercontent.com/zilinskaslandon/XingJiaoBen-2026-/refs/heads/main/%E6%98%9F%E8%84%9A%E6%9C%AC-%E7%A7%8D%E6%A4%8D%E8%8A%B1%E5%9B%AD.lua"))()',
                    ["战争大亨"] = 'getgenv().XiaoPi="星脚本-战争大亨" loadstring(game:HttpGet("https://raw.githubusercontent.com/zilinskaslandon/XingJiaoBen-2026-/refs/heads/main/%E6%98%9F%E8%84%9A%E6%9C%AC-%E6%88%98%E4%BA%89%E5%A4%A7%E4%BA%A8.lua"))()'
         },
-        gameMapping = {
+gameMapping = {
     [13822889] = "伐木大亨2",
     [127380660530951] = "在超市生活一周",
     [1119466531] = "极速传奇",
     [7326934954] = "森林99夜",
-    [1335695570] = "忍者传奇"
-    [7436755782] = "种植花园"
+    [1335695570] = "忍者传奇",
+    [7436755782] = "种植花园",
     [1526814825] = "战争大亨"
-        },
-        selectedScript = ""
-    }
-end)
+},
+selectedScript = ""
 
 run(function()
     about:Dropdown("选择服务器", "ServerSelector", {"伐木大亨2", "在超市生活一周","极速传奇","森林99夜","忍者传奇","种植花园","战争大亨"}, function(Value)
