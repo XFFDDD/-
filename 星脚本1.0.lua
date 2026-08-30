@@ -161,25 +161,28 @@ UI.__sections = {}   -- 记录所有 section 句柄，供 SetValue/UpdateLabel �
 
 function UI:CreateTab(window, name, icon)
     local Tab = window:CreateTab(name)
-    -- 每个 Tab 的第一个 section 用 CreateFrame(name) 承载
-    local firstPage = Tab:CreateFrame(name)
-    local tabObj = { Window = window, Tab = Tab, _first = firstPage, _cur = firstPage }
+    -- [修复] 一个 Tab 只创建一个 Frame 作为其内容容器。
+    -- 原库 CreateFrame 会生成平级 ScrollingFrame，Tab 切换靠 Window:GetChildren() 遍历实现；
+    -- 若每个 section 都建 Frame，会导致所有 Tab 的 Page 平铺在 Window 下、切换时互相覆盖，
+    -- 最终只剩最后创建的 Tab 内容可见。故这里每个 Tab 只建一个 Frame，所有 section 复用它。
+    local page = Tab:CreateFrame(name)
+    page.Visible = false  -- 默认隐藏，由库的 Tab 切换逻辑负责显示当前 Tab
+    local tabObj = { Window = window, Tab = Tab, _page = page, _els = {} }
     setmetatable(tabObj, { __index = UI })
     return tabObj
 end
 
--- section: 在新版里就是创建一个新的 Frame (Page)；返回句柄供 :Button 等使用
+-- section: 不再创建新 Frame，而是复用所属 Tab 的唯一内容 Frame。
+-- 返回带 _page 的句柄，使 :Button/:Toggle 等仍挂在正确的 Tab 容器上。
 function UI:section(name, defaultOpen)
-    local page = self.Tab:CreateFrame(name)
-    self._cur = page
-    local handle = { _page = page, _tab = self, _els = {} }
+    local handle = { _page = self._page, _tab = self, _els = {} }
     UI.__sections[name] = handle
     setmetatable(handle, { __index = UI })
     return handle
 end
 
 local function curPage(self)
-    return self._cur or self._tab and self._tab._first
+    return self._page
 end
 
 -- Label
