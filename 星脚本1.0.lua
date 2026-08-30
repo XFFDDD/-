@@ -173,11 +173,24 @@ UI.__sections = {}   -- 记录所有 section 句柄，供 SetValue/UpdateLabel �
   每个栏只有 1 个按钮, 视觉上互相遮盖只剩顶层 -> "左边没名字, 但按下去有功能"。
 --]]
 local _mainTab = nil      -- 唯一左侧导航栏(tab 对象, 带 :CreateFrame)
+_G._StarUISidebar = nil     -- 左侧导航栏 Frame(Tabs), 供折叠功能使用
 
 function UI:CreateTab(window, name, icon)
     -- 全脚本只创建一次左侧导航栏; 后续所有 "Tab" 都复用它, 通过 CreateFrame 注册按钮。
     if not _mainTab then
         _mainTab = window:CreateTab(name)
+        -- 延迟一帧捕获真实 Tabs Frame(左侧导航栏), 供折叠功能使用
+        spawn(function()
+            task.wait(0.05)
+            pcall(function()
+                for _, v in ipairs(window:GetChildren()) do
+                    if v:IsA("Frame") and v.Name == "Tabs" then
+                        _G._StarUISidebar = v
+                        break
+                    end
+                end
+            end)
+        end)
     end
     local Tab = _mainTab
     -- 每个功能页在【同一】导航栏里注册一个 PageButton + 一个内容 ScrollingFrame。
@@ -4930,4 +4943,119 @@ do
         end
     end
 end
+
+--[[
+  ============================================================
+  左侧导航栏【真正可用】的折叠(收起/展开)功能
+  ------------------------------------------------------------
+  原因: black ui 自带的那个收起按钮只是装饰动画, 没有真实折叠逻辑,
+        (即你说的"展开收起是假的")。这里自己重建一个真正生效的按钮:
+        - 点击后把左侧 Tabs 栏宽度在 【完整宽(默认140) <-> 收起宽(42)】间切换
+        - 收起时隐藏所有 PageButton 的文字(只留图标), 展开时恢复
+        - 同时把右侧内容区(剩余子级)的 Position 一起平移, 保证布局不塌
+  ============================================================
+--]]
+spawn(function()
+    task.wait(1)  -- 等所有 Tab/PageButton 创建完毕
+
+    pcall(function()
+        local sidebar = _G._StarUISidebar
+        if not sidebar or not sidebar:IsA("GuiObject") then return end
+
+        -- 找到右侧内容区(与 Tabs 同级、且不是 Tabs 的那个 ScrollingFrame/Frame)
+        local window = sidebar.Parent
+        local content = nil
+        for _, v in ipairs(window:GetChildren()) do
+            if v ~= sidebar and v:IsA("GuiObject") and v.Name ~= "TopBar" then
+                if v:IsA("ScrollingFrame") or v:IsA("Frame") then
+                    content = v
+                    break
+                end
+            end
+        end
+
+        -- 记录原始尺寸(展开态)
+        local EXPAND_W = sidebar.Size.X.Offset   -- 完整宽度(black ui 默认 140)
+        if EXPAND_W <= 42 then EXPAND_W = 140 end
+        local COLLAPSE_W = 42                    -- 收起后只留图标
+        local expanded = true
+
+        -- 创建一个真正能点的收起按钮(盖在 black ui 假按钮之上)
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Name = "SidebarToggle"
+        toggleBtn.Size = UDim2.new(0, 26, 0, 26)
+        toggleBtn.Position = UDim2.new(1, -30, 0, 6)   -- 贴靠 Tabs 右上角
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        toggleBtn.BorderSizePixel = 0
+        toggleBtn.Text = "«"
+        toggleBtn.TextColor3 = Color3.fromRGB(230, 230, 230)
+        toggleBtn.TextSize = 18
+        toggleBtn.Font = Enum.Font.GothamBold
+        toggleBtn.ZIndex = 100
+        toggleBtn.Parent = sidebar
+
+        local uiCorner = Instance.new("UICorner")
+        uiCorner.CornerRadius = UDim.new(0, 6)
+        uiCorner.Parent = toggleBtn
+
+        -- 切换单个 PageButton 的显示: 收起只留图标, 展开恢复文字
+        local function setButtonsVisible(showText)
+            for _, b in ipairs(sidebar:GetChildren()) do
+                if b:IsA("TextButton") and b.Name == "PageButton" then
+                    -- black ui 的 PageButton 文字存在 .Text 里; 图标通常是 ImageLabel 子级
+                    if showText then
+                        -- 恢复: 把保存的原始文字写回
+                        if b:FindFirstChild("__origText") then
+                            b.Text = b.__origText.Value
+                        end
+                    else
+                        -- 收起: 备份文字后清空
+                        if not b:FindFirstChild("__origText") then
+                            local tag = Instance.new("StringValue")
+                            tag.Name = "__origText"
+                            tag.Value = b.Text
+                            tag.Parent = b
+                        end
+                        b.Text = ""   -- 只留图标
+                    end
+                end
+            end
+        end
+
+        -- 执行折叠/展开动画(用 Tween 平滑过渡)
+        local TweenService = game:GetService("TweenService")
+        local function apply(collapse)
+            expanded = not collapse
+            local targetW = collapse and COLLAPSE_W or EXPAND_W
+
+            local tween = TweenService:Create(
+                sidebar,
+                TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                { Size = UDim2.new(0, targetW, sidebar.Size.Y.Scale, sidebar.Size.Y.Offset) }
+            )
+            tween:Play()
+
+            -- 同步平移右侧内容区
+            if content then
+                local ct = TweenService:Create(
+                    content,
+                    TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    {
+                        Position = UDim2.new(content.Position.X.Scale, content.Position.X.Offset + (collapse and -(EXPAND_W - COLLAPSE_W) or (EXPAND_W - COLLAPSE_W)), content.Position.Y.Scale, content.Position.Y.Offset),
+                        Size = UDim2.new(content.Size.X.Scale, content.Size.X.Offset + (collapse and (EXPAND_W - COLLAPSE_W) or -(EXPAND_W - COLLAPSE_W)), content.Size.Y.Scale, content.Size.Y.Offset)
+                    }
+                )
+                ct:Play()
+            end
+
+            setButtonsVisible(not collapse)
+            toggleBtn.Text = collapse and "»" or "«"
+        end
+
+        -- 点击切换
+        toggleBtn.MouseButton1Click:Connect(function()
+            apply(expanded)  -- expanded==true 时执行收起
+        end)
+    end)
+end)
 
