@@ -5147,16 +5147,14 @@ end)
 
 local function UpdateHitboxes()
     for player, character in pairs(playerCharacters) do
-        if player == Players.LocalPlayer then goto _cn17 end
-        
+        if player == Players.LocalPlayer then goto _cnUH end
+
         if getgenv().HitboxConfig.TeamCheck and player.Team == Players.LocalPlayer.Team then
-            goto _cn16
-        ::_cn16::
+            goto _cnUH
         end
 
         if getgenv().HitboxConfig.CheckCorpses and isCorpse(character) then
-            goto _cn15
-        ::_cn15::
+            goto _cnUH
         end
 
         pcall(function()
@@ -5219,16 +5217,16 @@ local function UpdateHitboxes()
                 end
             end
         end)
-    ::_cn17::
+        ::_cnUH::
     end
     
     if getgenv().HitboxConfig.AffectNPC and getgenv().HitboxConfig.Active then
         for character, _ in pairs(npcCharacters) do
             if character and character.Parent then
                 if getgenv().HitboxConfig.CheckCorpses and isCorpse(character) then
-                    goto _cn14
-                ::_cn14::
+                    goto _cn4
                 end
+    ::_cn4::
                 
                 pcall(function()
                     local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -9371,9 +9369,9 @@ run(function()
         for character, esp in pairs(ESPCache) do
             if not character or not character.Parent then
                 CleanupESP(character)
-                goto _cn13
-            ::_cn13::
+                goto _cn5
             end
+    ::_cn5::
             
             if not _G.ESPUtils.shouldShowESP(esp.Player, character) then
                 if esp.Highlight then 
@@ -9382,15 +9380,15 @@ run(function()
                 if esp.Billboard then 
                     esp.Billboard.Enabled = false 
                 end
-                goto _cn12
-            ::_cn12::
+                goto _cn6
             end
+    ::_cn6::
             
             local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then goto _cn11 end
+            if not humanoidRootPart then goto _cn7 end
             
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if not humanoid then goto _cn10 end
+            if not humanoid then goto _cn8 end
             
             if esp.Billboard and not esp.Billboard.Adornee then
                 esp.Billboard.Adornee = humanoidRootPart
@@ -9407,8 +9405,8 @@ run(function()
                     esp.Billboard.Enabled = false 
                 end
                 goto _cn9
-            ::_cn9::
             end
+    ::_cn9::
             
             local color = _G.ColorCalculator.CalculatePlayerColor(esp, humanoid, character, distance)
             local alphaMultiplier = _G.ESPConfig.UseDistanceFade and visibility or 1
@@ -9506,9 +9504,8 @@ run(function()
             if _G.ESPConfig.ShowTracer then
                 _G.TracerModule.UpdateTracer(esp.Player)
             end
-        ::_cn10::
-        ::_cn11::
         end
+    ::_cn7::  ::_cn8::
     end
     
     local function RecreateAllESP()
@@ -9995,8 +9992,8 @@ run(function()
     
     local function scanAndAddUsers()
         for _, player in pairs(Players:GetPlayers()) do
-            if player == LocalPlayer then goto _cn8 end
-            if not player.Character then goto _cn7 end
+            if player == LocalPlayer then goto _cn10 end
+            if not player.Character then goto _cn11 end
             
             if isPlayingSecretAnimation(player.Character) then
                 if not table.find(genv.PiScriptUsers, player.UserId) then
@@ -10006,9 +10003,8 @@ run(function()
                     end
                 end
             end
-        ::_cn7::
-        ::_cn8::
         end
+    ::_cn10::  ::_cn11::
     end
     
     local function monitorPlayers()
@@ -10825,9 +10821,9 @@ run(function()
                     local checkPos = aimPos or targetPart.Position
                     
                     if not isInFOVLimit(checkPos) then
-                        goto _cn6
-                    ::_cn6::
+                        goto _cn12
                     end
+    ::_cn12::
                     
                     local screenPos, onScreen = Cam:WorldToViewportPoint(checkPos)
                     if onScreen then
@@ -10839,14 +10835,14 @@ run(function()
                         end
                         
                         if AimBot.priority == "fov" and fovDistance > AimBot.distance then
-                            goto _cn5
-                        ::_cn5::
+                            goto _cn13
                         end
+    ::_cn13::
                         
                         if AimBot.wallCheck and isWallBetween(targetPart) then
-                            goto _cn4
-                        ::_cn4::
+                            goto _cn14
                         end
+    ::_cn14::
                         
                         local compareValue
                         if AimBot.priority == "fov" then
@@ -11816,15 +11812,15 @@ run(function()
         local camPos = Cam.CFrame.Position
         
         for _, npc in ipairs(getNPCs()) do
-            if not isAlive(npc) then goto _cn3 end
+            if not isAlive(npc) then goto _cn15 end
             
             local part = getAimPart(npc)
-            if not part then goto _cn2 end
+            if not part then goto _cn16 end
             
             local pos = part.Position
             local dist = (camPos - pos).Magnitude
             
-            if dist > Settings.distance then goto _cn1 end
+            if dist > Settings.distance then goto _cn17 end
             
             if Settings.wallCheck then
                 local raycastParams = RaycastParams.new()
@@ -11833,19 +11829,17 @@ run(function()
                 local rayDirection = (pos - camPos).Unit * dist
                 local raycastResult = workspace:Raycast(camPos, rayDirection, raycastParams)
                 if raycastResult and not raycastResult.Instance:IsDescendantOf(npc) then
-                    goto _cn0
-                ::_cn0::
+                    goto _cn18
                 end
+    ::_cn18::
             end
             
             if dist < closestDistance then
                 closestDistance = dist
                 closestTarget = npc
             end
-        ::_cn1::
-        ::_cn2::
-        ::_cn3::
         end
+    ::_cn15::  ::_cn16::  ::_cn17::
         return closestTarget
     end
     
@@ -11926,6 +11920,7 @@ run(function()
         end
     end)
 end)
+::_cn15::  ::_cn16::  ::_cn17::  ::_cn18::
 
 local PIJIAOBEN = UI:CreateTab(Window, "动画", "136169594232359")
 
