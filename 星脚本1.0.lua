@@ -18105,3 +18105,5 @@ do
 end
 
 end -- 闭合「默认选中首页」do 块
+
+end) --[[修复: 闭合 run(function()...end) ，权威栈定位: 行17969 run(function() 缺对应 ')']]
